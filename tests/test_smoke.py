@@ -1,4 +1,4 @@
 def test_import_package() -> None:
-    import envrctl
+    import envrcctl
 
-    assert envrctl is not None
+    assert envrcctl is not None

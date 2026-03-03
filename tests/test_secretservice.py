@@ -5,9 +5,9 @@ from subprocess import CalledProcessError
 
 import pytest
 
-from envrctl.errors import EnvrcctlError
-from envrctl.secrets import SecretRef
-from envrctl.secretservice import SecretServiceBackend
+from envrcctl.errors import EnvrcctlError
+from envrcctl.secrets import SecretRef
+from envrcctl.secretservice import SecretServiceBackend
 
 
 class DummyResult:

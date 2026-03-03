@@ -12,7 +12,7 @@ data sources that may carry untrusted or sensitive data.
 
 ## Command Inventory
 
-### macOS Keychain (`envrctl/keychain.py`)
+### macOS Keychain (`envrcctl/keychain.py`)
 
 **Runner:** `_run_security(args, input_text=None)`  
 **Invocation method:** `subprocess.run(..., text=True, capture_output=True, check=True)`
@@ -43,7 +43,7 @@ message `"Keychain command failed."`
 
 ---
 
-### Linux SecretService (`envrctl/secretservice.py`)
+### Linux SecretService (`envrcctl/secretservice.py`)
 
 **Runner:** `_run_secret_tool(args, input_text=None)`  
 **Invocation method:** `subprocess.run(..., text=True, capture_output=True, check=True)`

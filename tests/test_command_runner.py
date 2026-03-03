@@ -4,8 +4,8 @@ import subprocess
 
 import pytest
 
-from envrctl.command_runner import _validate_command_args, run_command
-from envrctl.errors import EnvrcctlError
+from envrcctl.command_runner import _validate_command_args, run_command
+from envrcctl.errors import EnvrcctlError
 
 
 def test_validate_command_args_rejects_empty() -> None:

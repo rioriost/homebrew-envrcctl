@@ -52,7 +52,7 @@ uv tool install envrcctl
 git clone <REPO_URL>
 cd envrcctl
 uv sync
-uv run python -m envrctl.main --help
+uv run python -m envrcctl.main --help
 ```
 
 ## Quick Start

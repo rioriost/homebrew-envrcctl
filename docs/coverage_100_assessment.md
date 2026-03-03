@@ -4,10 +4,10 @@
 - Command: `.zed/scripts/verify-release`
 - Total coverage: **98.43%** (8 misses)
 - Missing lines reported:
-  - `src/envrctl/keychain.py`: line 59
-  - `src/envrctl/main.py`: line 9
-  - `src/envrctl/secrets.py`: lines 72-74, 78-80, 85
-  - `src/envrctl/secretservice.py`: line 56
+  - `src/envrcctl/keychain.py`: line 59
+  - `src/envrcctl/main.py`: line 9
+  - `src/envrcctl/secrets.py`: lines 72-74, 78-80, 85
+  - `src/envrcctl/secretservice.py`: line 56
 
 ## Gaps and Proposed Coverage
 
@@ -16,7 +16,7 @@
 | Keychain backend list | `keychain.py:59` | `KeychainBackend.list()` not called | Add a unit test that instantiates the backend and asserts `list()` returns `[]`. No external dependencies. |
 | SecretService backend list | `secretservice.py:56` | `SecretServiceBackend.list()` not called | Add a unit test that instantiates the backend and asserts `list()` returns `[]`. No external dependencies. |
 | Backend selection errors | `secrets.py:72-74, 78-80, 85` | Error branches not exercised | Add tests that monkeypatch `sys.platform` and `_have_cmd` to force: non-macOS for `kc`, missing `secret-tool` for `ss`, and unsupported scheme. Assert the error messages. |
-| CLI entrypoint guard | `main.py:9` | `if __name__ == "__main__"` not executed | Use `runpy.run_module("envrctl.main", run_name="__main__")` while monkeypatching `envrctl.cli.app` to a no-op to avoid CLI execution. |
+| CLI entrypoint guard | `main.py:9` | `if __name__ == "__main__"` not executed | Use `runpy.run_module("envrcctl.main", run_name="__main__")` while monkeypatching `envrcctl.cli.app` to a no-op to avoid CLI execution. |
 
 ## Feasibility Conclusion
 Reaching 100% coverage is **feasible with small, deterministic unit tests** and **no external OS dependencies**. The remaining misses are all trivial branches or guard code that can be safely exercised via monkeypatching and `runpy`.

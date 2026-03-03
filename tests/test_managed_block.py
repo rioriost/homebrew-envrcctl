@@ -1,4 +1,4 @@
-from envrctl.managed_block import (
+from envrcctl.managed_block import (
     BEGIN_MARKER,
     END_MARKER,
     INJECT_LINE,

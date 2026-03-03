@@ -271,7 +271,7 @@
           "outputs": [
             "Shared command runner helper",
             "Consistent error handling for subprocess calls",
-            "src/envrctl/command_runner.py"
+            "src/envrcctl/command_runner.py"
           ]
         },
         {
@@ -282,9 +282,9 @@
           "outputs": [
             "Argument allowlists for each command",
             "Validation of dynamic inputs",
-            "src/envrctl/command_runner.py",
-            "src/envrctl/keychain.py",
-            "src/envrctl/secretservice.py"
+            "src/envrcctl/command_runner.py",
+            "src/envrcctl/keychain.py",
+            "src/envrcctl/secretservice.py"
           ]
         },
         {
@@ -329,7 +329,7 @@
           "outputs": [
             "Realpath validation before writes",
             "Protection against unexpected write targets",
-            "src/envrctl/envrc.py",
+            "src/envrcctl/envrc.py",
             "tests/test_envrc.py"
           ]
         },
@@ -341,7 +341,7 @@
           "outputs": [
             "Explicit errors when backend is unavailable",
             "No silent fallback behavior",
-            "src/envrctl/secrets.py",
+            "src/envrcctl/secrets.py",
             "tests/test_secrets.py"
           ]
         },
@@ -353,7 +353,7 @@
           "outputs": [
             "Validation of schemes and allowed characters",
             "Clear error messaging for invalid refs",
-            "src/envrctl/secrets.py",
+            "src/envrcctl/secrets.py",
             "tests/test_secrets.py"
           ]
         },

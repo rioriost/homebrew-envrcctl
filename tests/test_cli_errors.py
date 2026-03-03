@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from envrctl import cli
-from envrctl.envrc import ENVRC_FILENAME
+from envrcctl import cli
+from envrcctl.envrc import ENVRC_FILENAME
 
 
 def test_set_rejects_invalid_env_var(tmp_path: Path, monkeypatch) -> None:

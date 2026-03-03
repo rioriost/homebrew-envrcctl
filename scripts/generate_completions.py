@@ -6,7 +6,7 @@ from pathlib import Path
 
 from typer.main import get_command
 
-from envrctl.cli import app
+from envrcctl.cli import app
 
 SHELLS = ("bash", "zsh", "fish")
 

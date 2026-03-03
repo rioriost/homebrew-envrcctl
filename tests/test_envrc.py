@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from envrctl.envrc import (
+from envrcctl.envrc import (
     ENVRC_FILENAME,
     EnvrcDocument,
     ensure_managed_block,
@@ -14,8 +14,8 @@ from envrctl.envrc import (
     render_envrc,
     write_envrc,
 )
-from envrctl.errors import EnvrcctlError
-from envrctl.managed_block import BEGIN_MARKER, END_MARKER, ManagedBlock
+from envrcctl.errors import EnvrcctlError
+from envrcctl.managed_block import BEGIN_MARKER, END_MARKER, ManagedBlock
 
 
 def test_load_envrc_missing_file(tmp_path: Path) -> None:

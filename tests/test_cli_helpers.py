@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from envrctl import cli
-from envrctl.envrc import ENVRC_FILENAME
-from envrctl.errors import EnvrcctlError
+from envrcctl import cli
+from envrcctl.envrc import ENVRC_FILENAME
+from envrcctl.errors import EnvrcctlError
 
 
 def test_find_nearest_envrc_dir_returns_none(tmp_path: Path) -> None:
@@ -114,8 +114,8 @@ def test_confirm_or_abort_assume_yes_skips(monkeypatch) -> None:
 def test_write_envrc_raises_when_world_writable_after_write(
     tmp_path: Path, monkeypatch
 ) -> None:
-    from envrctl.envrc import load_envrc
-    from envrctl.managed_block import ManagedBlock
+    from envrcctl.envrc import load_envrc
+    from envrcctl.managed_block import ManagedBlock
 
     envrc_path = tmp_path / ENVRC_FILENAME
     doc = load_envrc(envrc_path)

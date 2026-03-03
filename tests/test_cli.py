@@ -7,9 +7,9 @@ from typing import Dict
 
 from typer.testing import CliRunner
 
-from envrctl import cli
-from envrctl.envrc import ENVRC_FILENAME
-from envrctl.managed_block import ManagedBlock, render_managed_block
+from envrcctl import cli
+from envrcctl.envrc import ENVRC_FILENAME
+from envrcctl.managed_block import ManagedBlock, render_managed_block
 
 
 class DummyBackend:

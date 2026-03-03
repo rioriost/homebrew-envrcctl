@@ -1,7 +1,7 @@
 import pytest
 
-from envrctl import secrets
-from envrctl.errors import EnvrcctlError
+from envrcctl import secrets
+from envrcctl.errors import EnvrcctlError
 
 
 def test_parse_ref_valid_and_invalid() -> None:
@@ -155,7 +155,7 @@ def test_backend_for_scheme_returns_keychain(monkeypatch) -> None:
         pass
 
     monkeypatch.setattr(secrets.sys, "platform", "darwin")
-    import envrctl.keychain as keychain
+    import envrcctl.keychain as keychain
 
     monkeypatch.setattr(keychain, "KeychainBackend", DummyKeychainBackend)
 
@@ -168,7 +168,7 @@ def test_backend_for_scheme_returns_secretservice(monkeypatch) -> None:
         pass
 
     monkeypatch.setattr(secrets, "_have_cmd", lambda cmd: True)
-    import envrctl.secretservice as secretservice
+    import envrcctl.secretservice as secretservice
 
     monkeypatch.setattr(
         secretservice, "SecretServiceBackend", DummySecretServiceBackend
