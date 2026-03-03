@@ -26,4 +26,5 @@ include = ["src/envrctl/**", "README.md", "LICENSE", "pyproject.toml"]
 dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "bandit>=1.7.10",
 ]

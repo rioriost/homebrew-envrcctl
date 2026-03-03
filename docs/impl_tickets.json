@@ -380,7 +380,7 @@
         {
           "id": "p5-12",
           "title": "Security linting integration",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Static analysis options"],
           "outputs": [
             "Security-focused linting config",
@@ -390,7 +390,7 @@
         {
           "id": "p5-13",
           "title": "Threat model and release checklist",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Release workflow"],
           "outputs": [
             "Threat model and operational guidance",

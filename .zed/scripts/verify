@@ -47,6 +47,12 @@ if (( has_python == 1 )); then
   else
     skip_cmd "python" "python"
   fi
+  if have_cmd bandit; then
+    echo "==> python: bandit"
+    bandit -r src -x tests -s B404,B603,B607 && ran=1 || exit 1
+  else
+    skip_cmd "python" "bandit"
+  fi
 fi
 
 if (( has_swift == 1 )); then

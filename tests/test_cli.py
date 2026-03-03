@@ -220,7 +220,7 @@ def test_cli_migrate_moves_unmanaged_exports(tmp_path: Path, monkeypatch) -> Non
     )
     (tmp_path / ENVRC_FILENAME).write_text(content, encoding="utf-8")
 
-    result = runner.invoke(cli.app, ["migrate"])
+    result = runner.invoke(cli.app, ["migrate", "--yes"])
     assert result.exit_code == 0
 
     envrc_text = _read_envrc(tmp_path / ENVRC_FILENAME)
@@ -240,7 +240,7 @@ def test_init_warns_when_world_writable(tmp_path: Path, monkeypatch) -> None:
     envrc_path.write_text("# placeholder\n", encoding="utf-8")
     envrc_path.chmod(0o666)
 
-    result = runner.invoke(cli.app, ["init"])
+    result = runner.invoke(cli.app, ["init", "--yes"])
     assert result.exit_code == 1
     assert "world-writable" in result.stderr
 
