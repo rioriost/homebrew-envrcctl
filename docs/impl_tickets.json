@@ -255,11 +255,12 @@
         {
           "id": "p5-01",
           "title": "Inventory external command usage",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Current subprocess call sites"],
           "outputs": [
             "Catalog of external command invocations",
-            "List of arguments and data flow sources"
+            "List of arguments and data flow sources",
+            "docs/security_command_inventory.md"
           ]
         },
         {
