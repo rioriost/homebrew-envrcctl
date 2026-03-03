@@ -35,7 +35,7 @@ def test_keychain_get_calls_security(monkeypatch) -> None:
     assert "-w" in calls[0][0]
 
 
-def test_keychain_set_uses_stdin(monkeypatch) -> None:
+def test_keychain_set_passes_password_arg(monkeypatch) -> None:
     calls = []
 
     def fake_run(args, **kwargs):
@@ -51,8 +51,8 @@ def test_keychain_set_uses_stdin(monkeypatch) -> None:
     args, kwargs = calls[0]
     assert args[:3] == ["security", "add-generic-password", "-s"]
     assert "-U" in args
-    assert args[-1] == "-w"
-    assert kwargs["input"] == "value\n"
+    assert args[-2:] == ["-w", "value"]
+    assert kwargs["input"] == "value"
 
 
 def test_keychain_delete_calls_security(monkeypatch) -> None:

@@ -27,8 +27,7 @@ class KeychainBackend(SecretBackend):
         return result.strip()
 
     def set(self, ref: SecretRef, value: str) -> None:
-        # Use -w as the final option to prompt for password to avoid CLI args.
-        # Provide value via stdin.
+        # Pass password directly to avoid interactive prompt.
         run_command(
             [
                 "security",
@@ -39,8 +38,9 @@ class KeychainBackend(SecretBackend):
                 ref.account,
                 "-U",
                 "-w",
+                value,
             ],
-            input_text=value + "\n",
+            input_text=value,
             allowed_commands={"security"},
             error_message="Keychain command failed.",
         )

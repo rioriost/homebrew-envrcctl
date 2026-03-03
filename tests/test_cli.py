@@ -610,7 +610,8 @@ def test_secret_set_uses_getpass(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
-    monkeypatch.setattr(cli.getpass, "getpass", lambda _: "secretvalue")
+    values = iter(["secretvalue", "secretvalue"])
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _: next(values))
 
     runner.invoke(cli.app, ["init"])
     result = runner.invoke(cli.app, ["secret", "set", "TOKEN", "--account", "acct"])
@@ -618,6 +619,24 @@ def test_secret_set_uses_getpass(tmp_path: Path, monkeypatch) -> None:
 
     envrc_text = _read_envrc(tmp_path / ENVRC_FILENAME)
     assert "ENVRCCTL_SECRET_TOKEN" in envrc_text
+
+
+def test_secret_set_rejects_mismatched_confirmation(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    values = iter(["secretvalue", "different"])
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _: next(values))
+
+    runner.invoke(cli.app, ["init"])
+    result = runner.invoke(cli.app, ["secret", "set", "TOKEN", "--account", "acct"])
+    assert result.exit_code == 1
+    assert "does not match confirmation" in result.stderr
 
 
 def test_secret_unset_missing_ref(tmp_path: Path, monkeypatch) -> None:

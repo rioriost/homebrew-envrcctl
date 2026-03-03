@@ -259,6 +259,9 @@ def secret_set(
             value = sys.stdin.read()
         else:
             value = getpass.getpass("Secret value: ")
+            confirm = getpass.getpass("Confirm secret value: ")
+            if confirm != value:
+                raise EnvrcctlError("Secret value does not match confirmation.")
         value = value.rstrip("\n")
         if not value:
             raise EnvrcctlError("Secret value is empty.")
