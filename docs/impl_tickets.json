@@ -250,7 +250,7 @@
       "id": "phase-5",
       "name": "Phase 5 — Security Hardening",
       "goal": "Reduce tool-side security risks and strengthen safe-by-default behavior.",
-      "status": "planned",
+      "status": "done",
       "tasks": [
         {
           "id": "p5-01",
