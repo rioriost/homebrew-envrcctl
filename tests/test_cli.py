@@ -175,3 +175,151 @@ def test_cli_migrate_moves_unmanaged_exports(tmp_path: Path, monkeypatch) -> Non
     envrc_text = _read_envrc(tmp_path / ENVRC_FILENAME)
     assert "export OUTSIDE=1" in envrc_text
     assert "ENVRCCTL_SECRET_API_KEY" in envrc_text
+
+
+def test_find_nearest_envrc_dir_returns_none(tmp_path: Path) -> None:
+    assert cli._find_nearest_envrc_dir(tmp_path) is None
+
+
+def test_init_warns_when_world_writable(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli, "write_envrc", lambda *args, **kwargs: True)
+
+    result = runner.invoke(cli.app, ["init"])
+    assert result.exit_code == 0
+    assert "world-writable" in result.stderr
+
+
+def test_secret_set_uses_getpass(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _: "secretvalue")
+
+    runner.invoke(cli.app, ["init"])
+    result = runner.invoke(cli.app, ["secret", "set", "TOKEN", "--account", "acct"])
+    assert result.exit_code == 0
+
+    envrc_text = _read_envrc(tmp_path / ENVRC_FILENAME)
+    assert "ENVRCCTL_SECRET_TOKEN" in envrc_text
+
+
+def test_secret_unset_missing_ref(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    runner.invoke(cli.app, ["init"])
+    result = runner.invoke(cli.app, ["secret", "unset", "MISSING"])
+    assert result.exit_code == 1
+    assert "has no secret reference" in result.stderr
+
+
+def test_secret_list_outputs_refs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    block = ManagedBlock(
+        secret_refs={"TOKEN": "kc:svc:acct"},
+        include_inject=False,
+    )
+    (tmp_path / ENVRC_FILENAME).write_text(
+        render_managed_block(block), encoding="utf-8"
+    )
+
+    result = runner.invoke(cli.app, ["secret", "list"])
+    assert result.exit_code == 0
+    assert "TOKEN=kc:svc:acct" in result.stdout
+
+
+def test_eval_stops_when_no_parent_envrc(tmp_path: Path, monkeypatch) -> None:
+    child_dir = tmp_path / "child"
+    child_dir.mkdir()
+    monkeypatch.chdir(child_dir)
+
+    block = ManagedBlock(
+        inherit=True,
+        exports={"CHILD": "two"},
+        include_inject=False,
+    )
+    (child_dir / ENVRC_FILENAME).write_text(
+        render_managed_block(block), encoding="utf-8"
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(cli.app, ["eval"])
+    assert result.exit_code == 0
+    assert "CHILD = two" in result.stdout
+
+
+def test_eval_stops_when_parent_has_no_managed_block(
+    tmp_path: Path, monkeypatch
+) -> None:
+    parent_dir = tmp_path / "parent"
+    child_dir = parent_dir / "child"
+    child_dir.mkdir(parents=True)
+
+    (parent_dir / ENVRC_FILENAME).write_text("export PARENT=1\n", encoding="utf-8")
+
+    block = ManagedBlock(
+        inherit=True,
+        exports={"CHILD": "two"},
+        include_inject=False,
+    )
+    (child_dir / ENVRC_FILENAME).write_text(
+        render_managed_block(block), encoding="utf-8"
+    )
+
+    monkeypatch.chdir(child_dir)
+    runner = CliRunner()
+    result = runner.invoke(cli.app, ["eval"])
+    assert result.exit_code == 0
+    assert "CHILD = two" in result.stdout
+    assert "PARENT =" not in result.stdout
+
+
+def test_doctor_warns_when_no_managed_block(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    (tmp_path / ENVRC_FILENAME).write_text("export FOO=bar\n", encoding="utf-8")
+
+    result = runner.invoke(cli.app, ["doctor"])
+    assert result.exit_code == 0
+    assert "Managed block not found" in result.stderr
+
+
+def test_doctor_warns_for_unmanaged_secret_refs(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    block = ManagedBlock(include_inject=True)
+    content = "\n".join(
+        [
+            "export ENVRCCTL_SECRET_API_KEY=kc:svc:acct",
+            render_managed_block(block).rstrip(),
+        ]
+    )
+    (tmp_path / ENVRC_FILENAME).write_text(content, encoding="utf-8")
+
+    result = runner.invoke(cli.app, ["doctor"])
+    assert result.exit_code == 0
+    assert "unmanaged secret refs outside block" in result.stderr
+
+
+def test_doctor_ok_when_no_warnings(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+
+    block = ManagedBlock(include_inject=True)
+    (tmp_path / ENVRC_FILENAME).write_text(
+        render_managed_block(block), encoding="utf-8"
+    )
+
+    result = runner.invoke(cli.app, ["doctor"])
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "OK"

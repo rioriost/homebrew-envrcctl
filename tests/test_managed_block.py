@@ -49,3 +49,20 @@ def test_split_envrc_without_block() -> None:
     assert managed_lines is None
     assert before == text
     assert after == ""
+
+
+def test_split_envrc_missing_end_marker() -> None:
+    text = "\n".join([BEGIN_MARKER, "# managed: true", "export FOO=bar"])
+    before, managed_lines, after, has_block = split_envrc(text)
+    assert has_block is False
+    assert managed_lines is None
+    assert before == text
+    assert after == ""
+
+
+def test_parse_managed_block_skips_non_export() -> None:
+    lines = ["export GOOD=1", "export BAD", "notexport", " # comment"]
+    block = parse_managed_block(lines)
+    assert block.exports == {"GOOD": "1"}
+    assert block.secret_refs == {}
+    assert block.include_inject is False

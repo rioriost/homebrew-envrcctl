@@ -71,6 +71,11 @@ def test_render_envrc_preserves_after_when_block_present(tmp_path: Path) -> None
     assert "# after" in content
 
 
+def test_is_world_writable_missing_file(tmp_path: Path) -> None:
+    envrc_path = tmp_path / ENVRC_FILENAME
+    assert is_world_writable(envrc_path) is False
+
+
 def test_write_envrc_and_permissions(tmp_path: Path) -> None:
     envrc_path = tmp_path / ENVRC_FILENAME
     doc = load_envrc(envrc_path)
