@@ -4,7 +4,7 @@ class Envrcctl < Formula
   desc "Secure, structured management of .envrc files"
   homepage "https://github.com/rioriost/homebrew-envrcctl"
   url "file:///Users/rifujita/ownCloud/bin/envrcctl/dist/envrcctl-0.0.1.tar.gz"
-  sha256 "5e37463c04bb249672494106c7a7003ceeeb4e33db97e4535df75c44934d13e7"
+  sha256 "1e3ae002295b28da1ea260de0e872b0b1be566176161f6c3a0ad3e9e52505a96"
   license "MIT"
 
   depends_on "python@3.14"
