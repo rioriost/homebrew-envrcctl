@@ -254,61 +254,131 @@
       "tasks": [
         {
           "id": "p5-01",
-          "title": "Command execution hardening",
+          "title": "Inventory external command usage",
           "status": "planned",
-          "inputs": ["External command usage inventory"],
+          "inputs": ["Current subprocess call sites"],
           "outputs": [
-            "Centralized command runner",
-            "Argument validation for command invocations"
+            "Catalog of external command invocations",
+            "List of arguments and data flow sources"
           ]
         },
         {
           "id": "p5-02",
-          "title": "Secret leakage prevention",
+          "title": "Centralize external command runner",
           "status": "planned",
-          "inputs": ["Error paths and output flows"],
+          "inputs": ["Command inventory"],
           "outputs": [
-            "Sanitized error messages",
-            "Guarantee only inject emits secret values"
+            "Shared command runner helper",
+            "Consistent error handling for subprocess calls"
           ]
         },
         {
           "id": "p5-03",
-          "title": "Filesystem safety checks",
+          "title": "Argument validation and allowlist",
           "status": "planned",
-          "inputs": ["Current .envrc write and permission checks"],
+          "inputs": ["Command runner helper"],
           "outputs": [
-            "Strict world-writable enforcement",
-            "Realpath validation to avoid unexpected write targets"
+            "Argument allowlists for each command",
+            "Validation of dynamic inputs"
           ]
         },
         {
           "id": "p5-04",
-          "title": "Backend validation and ref hardening",
+          "title": "Redact secrets in error paths",
           "status": "planned",
-          "inputs": ["Backend selection logic", "Ref schema"],
+          "inputs": ["Error paths and output flows"],
           "outputs": [
-            "Fail-fast selection with clear errors",
-            "Stricter ref validation"
+            "Sanitized error messages",
+            "Tests covering redaction behavior"
           ]
         },
         {
           "id": "p5-05",
-          "title": "Safety UX for risky operations",
+          "title": "Guarantee inject-only secret output",
           "status": "planned",
-          "inputs": ["Init/migrate behavior", "Doctor checks"],
+          "inputs": ["CLI output paths"],
           "outputs": [
-            "Explicit confirmation for destructive ops",
-            "Enhanced doctor warnings for risky patterns"
+            "Assertions that only inject emits secret values",
+            "Tests covering non-inject output safety"
           ]
         },
         {
           "id": "p5-06",
-          "title": "Security tooling and release checks",
+          "title": "Enforce world-writable .envrc policy",
           "status": "planned",
-          "inputs": ["Static analysis options", "Release workflow"],
+          "inputs": ["Current permission checks"],
           "outputs": [
-            "Security linting integration",
+            "Stricter handling for world-writable files",
+            "Documented behavior and tests"
+          ]
+        },
+        {
+          "id": "p5-07",
+          "title": "Realpath and symlink safety for writes",
+          "status": "planned",
+          "inputs": ["Current .envrc write behavior"],
+          "outputs": [
+            "Realpath validation before writes",
+            "Protection against unexpected write targets"
+          ]
+        },
+        {
+          "id": "p5-08",
+          "title": "Fail-fast backend selection",
+          "status": "planned",
+          "inputs": ["Backend selection logic"],
+          "outputs": [
+            "Explicit errors when backend is unavailable",
+            "No silent fallback behavior"
+          ]
+        },
+        {
+          "id": "p5-09",
+          "title": "Stricter secret ref validation",
+          "status": "planned",
+          "inputs": ["Ref schema and parsing"],
+          "outputs": [
+            "Validation of schemes and allowed characters",
+            "Clear error messaging for invalid refs"
+          ]
+        },
+        {
+          "id": "p5-10",
+          "title": "Explicit confirmations for risky operations",
+          "status": "planned",
+          "inputs": ["Init/migrate behavior"],
+          "outputs": [
+            "Confirmation flags for destructive actions",
+            "Safe defaults documented"
+          ]
+        },
+        {
+          "id": "p5-11",
+          "title": "Doctor enhancements for risky patterns",
+          "status": "planned",
+          "inputs": ["Doctor checks"],
+          "outputs": [
+            "Warnings for unmanaged secrets outside block",
+            "Checks for insecure patterns and guidance"
+          ]
+        },
+        {
+          "id": "p5-12",
+          "title": "Security linting integration",
+          "status": "planned",
+          "inputs": ["Static analysis options"],
+          "outputs": [
+            "Security-focused linting config",
+            "CI hook or verify step integration"
+          ]
+        },
+        {
+          "id": "p5-13",
+          "title": "Threat model and release checklist",
+          "status": "planned",
+          "inputs": ["Release workflow"],
+          "outputs": [
+            "Threat model and operational guidance",
             "Release checklist for security-sensitive paths"
           ]
         }
