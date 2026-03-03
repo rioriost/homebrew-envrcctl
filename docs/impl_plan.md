@@ -156,6 +156,89 @@ This plan expands `docs/draft.md` into concrete, phased execution steps. Each ph
 
 ---
 
+## Phase 4 — Test & Coverage Workflow
+
+**Goal:** Align dev dependencies, verify flow, and coverage target.
+
+### Scope
+- Move pytest/pytest-cov to dev-only dependencies
+- Add work loop-appropriate tests for verify
+- Add verify-release coverage script and tasks.json entry
+- Enforce 90% coverage improvement loop
+- Assess feasibility of 100% coverage
+
+### Deliverables
+- Dev-only pytest dependencies
+- Stable verify test set
+- `.zed/scripts/verify-release` and tasks.json wiring
+- Coverage policy documented (>= 90%)
+- 100% feasibility assessment and remaining gaps list
+
+### Implementation Steps
+1. **Dev deps**
+   - Move pytest/pytest-cov into dev-only dependency group
+2. **Verify tests**
+   - Add a stable test set for the verify loop
+3. **Verify-release**
+   - Add coverage script and tasks.json entry
+4. **Coverage loop**
+   - Document policy and enforce >= 90%
+5. **100% assessment**
+   - Enumerate uncovered lines and feasibility
+
+### Exit Criteria
+- `verify` and `verify-release` are documented and stable
+- Coverage policy is enforced and tracked
+- 100% feasibility assessment is recorded
+
+---
+
+## Phase 5 — Security Hardening
+
+**Goal:** Reduce tool-side security risks and strengthen safe-by-default behavior.
+
+### Scope
+- Tighten external command execution boundaries
+- Prevent secret leakage via outputs/errors
+- Harden `.envrc` filesystem safety checks
+- Strengthen backend validation and selection
+- Add safety UX for destructive or risky operations
+- Add security-focused checks to tooling
+
+### Deliverables
+- Sanitized error handling for secret flows
+- Strict `.envrc` permission and path validations
+- Explicit backend selection failures (no silent fallback)
+- Safer defaults for `init`/`migrate` with explicit confirmation
+- Security checks documented and automated
+
+### Implementation Steps
+1. **Command execution hardening**
+   - Centralize external command invocations
+   - Validate arguments and reduce dynamic input paths
+2. **Secret leakage prevention**
+   - Ensure errors/logs never include secret values
+   - Confirm only `inject` emits secret material
+3. **Filesystem safety**
+   - Enforce stricter world-writable `.envrc` handling
+   - Validate realpaths to avoid unexpected write targets
+4. **Backend validation**
+   - Fail fast on missing backends or unsupported schemes
+   - Improve ref validation and error messaging
+5. **Safe UX**
+   - Require explicit confirmation for destructive ops
+   - Strengthen `doctor` checks for risky patterns
+6. **Security tooling**
+   - Add static analysis (e.g., security linting)
+   - Add a release checklist for security-sensitive paths
+
+### Exit Criteria
+- Security-sensitive paths are guarded by strict checks
+- Documented threat model and operational guidance
+- Automated checks cover common security regressions
+
+---
+
 ## Cross-Cutting Considerations
 
 ### Project Management
@@ -185,3 +268,5 @@ This plan expands `docs/draft.md` into concrete, phased execution steps. Each ph
 - **Phase 1:** Core functionality (MVP) on macOS
 - **Phase 2:** Diagnostics, eval, migration, completion
 - **Phase 3:** Linux backend + extensibility
+- **Phase 4:** Test & coverage workflow
+- **Phase 5:** Security hardening
