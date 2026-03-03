@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 from envrctl.envrc import (
     ENVRC_FILENAME,
     EnvrcDocument,
@@ -11,6 +13,7 @@ from envrctl.envrc import (
     render_envrc,
     write_envrc,
 )
+from envrctl.errors import EnvrcctlError
 from envrctl.managed_block import BEGIN_MARKER, END_MARKER, ManagedBlock
 
 
@@ -87,3 +90,32 @@ def test_write_envrc_and_permissions(tmp_path: Path) -> None:
 
     os.chmod(envrc_path, 0o666)
     assert is_world_writable(envrc_path) is True
+
+
+def test_write_envrc_rejects_symlink_path(tmp_path: Path) -> None:
+    target = tmp_path / "real.envrc"
+    target.write_text("# existing\n", encoding="utf-8")
+
+    link = tmp_path / ENVRC_FILENAME
+    link.symlink_to(target)
+
+    doc = load_envrc(link)
+    block = ManagedBlock(exports={"FOO": "bar"}, include_inject=True)
+
+    with pytest.raises(EnvrcctlError):
+        write_envrc(link, doc, block)
+
+
+def test_write_envrc_rejects_symlink_parent(tmp_path: Path) -> None:
+    real_dir = tmp_path / "real"
+    real_dir.mkdir()
+
+    link_dir = tmp_path / "link"
+    link_dir.symlink_to(real_dir, target_is_directory=True)
+
+    envrc_path = link_dir / ENVRC_FILENAME
+    doc = load_envrc(envrc_path)
+    block = ManagedBlock(exports={"FOO": "bar"}, include_inject=True)
+
+    with pytest.raises(EnvrcctlError):
+        write_envrc(envrc_path, doc, block)

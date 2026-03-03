@@ -324,11 +324,13 @@
         {
           "id": "p5-07",
           "title": "Realpath and symlink safety for writes",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Current .envrc write behavior"],
           "outputs": [
             "Realpath validation before writes",
-            "Protection against unexpected write targets"
+            "Protection against unexpected write targets",
+            "src/envrctl/envrc.py",
+            "tests/test_envrc.py"
           ]
         },
         {

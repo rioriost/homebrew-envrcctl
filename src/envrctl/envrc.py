@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from .errors import EnvrcctlError
 from .managed_block import (
     SECRET_ENV_PREFIX,
     ManagedBlock,
@@ -81,7 +82,21 @@ def render_envrc(doc: EnvrcDocument, managed: ManagedBlock) -> str:
     return content.rstrip() + "\n"
 
 
+def validate_envrc_write_target(path: Path) -> None:
+    if path.exists():
+        if path.is_symlink():
+            raise EnvrcctlError(".envrc is a symlink; refusing to write.")
+        if not path.is_file():
+            raise EnvrcctlError(".envrc is not a regular file; refusing to write.")
+    for parent in path.parents:
+        if parent.exists() and parent.is_symlink():
+            raise EnvrcctlError(
+                "Refusing to write .envrc inside a symlinked directory."
+            )
+
+
 def write_envrc(path: Path, doc: EnvrcDocument, managed: ManagedBlock) -> bool:
+    validate_envrc_write_target(path)
     content = render_envrc(doc, managed)
     _atomic_write(path, content)
     return is_world_writable(path)
