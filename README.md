@@ -1,274 +1,197 @@
 # envrcctl
 
-envrcctl is a macOS-first (Linux-ready) CLI tool for secure, structured
-management of `.envrc` files used with direnv.
+envrcctl is a CLI tool that manages `.envrc` files safely through a managed
+block, with secrets stored in your OS key store instead of the file.
 
-Inspired by:
-https://zenn.dev/yottayoshida/articles/llm-key-ring-secure-api-key-management
+It is designed for macOS first, with Linux support via SecretService.
 
-## Goals
+## Features
 
-- Securely manage secrets (stored in OS key store)
-- Manage non-secret environment variables
-- Support parent directory inheritance (`source_up`)
-- Provide CRUD operations
-- Keep `.envrc` safe via managed block editing only
-- Allow future Linux support via pluggable secret backends
+- Safe, structured edits to `.envrc` (managed block only)
+- Non-secret environment variables (CRUD)
+- Secrets stored in Keychain (macOS) or SecretService (Linux)
+- Inheritance control (`source_up` on/off)
+- Secret injection for direnv (`eval "$(envrcctl inject)"`)
+- Diagnostics and migration helpers
+- Shell completion scripts
 
-## Architecture
+## Requirements
 
-### Core (OS-independent)
+- Python 3.14+
+- `direnv` (for `.envrc` usage)
+- macOS Keychain (built-in) or Linux SecretService (`secret-tool`)
 
-Responsible for:
+## Installation
 
-- Managed block detection and regeneration
-- Non-secret CRUD
-- Secret reference management
-- Inheritance toggling (source_up on/off)
-- Atomic `.envrc` writes
-- `inject` command (produces export statements)
-- `eval` command (effective merged view)
-- CLI interface
+### With pipx (recommended)
 
-### Secret Backend Interface
+```sh
+pipx install envrcctl
+```
 
-Abstract interface:
+### With uv
 
-    class SecretBackend:
-        def get(ref) -> str
-        def set(ref, value)
-        def delete(ref)
-        def list(prefix=None)
+```sh
+uv tool install envrcctl
+```
 
-Initial implementation:
+### From source
 
-- macOS: KeychainBackend using `/usr/bin/security` CLI
+```sh
+git clone <REPO_URL>
+cd envrcctl
+uv sync
+uv run python -m envrctl.main --help
+```
 
-Future Linux:
+> Homebrew: a formula template exists at `Formula/envrcctl.rb` for future
+> publishing. Replace the URL/SHA256 with a release tarball to use it.
 
-- SecretServiceBackend (secret-tool / libsecret)
-- Possibly pass or keyring-based backend
+## Quick Start
 
-## Managed Block Format
+1. Initialize a managed block in `.envrc`:
 
-`.envrc` will contain a managed section:
+```sh
+envrcctl init
+```
 
-    # >>> envrcctl:begin
-    # managed: true
+2. Add non-secret variables:
 
-    source_up  # optional (inherit on)
-
-    export BREWFILE="$PWD/Brewfile"
-
-    export ENVRCCTL_SECRET_OPENAI_API_KEY="kc:com.rio.envrcctl:openai:prod"
-
-    eval "$(envrcctl inject)"
-
-    # <<< envrcctl:end
-
-Rules:
-
-- Tool only edits content between begin/end
-- Everything else is preserved
-- Block is fully regenerated on each mutation
-
-## Secret Storage Model
-
-Ref format:
-
-    kc:<service>:<account>
-
-Example:
-
-    kc:com.rio.envrcctl:openai:prod
-
-Keychain mapping:
-
-- service = com.rio.envrcctl
-- account = openai:prod
-- value = actual secret
-
-Secrets are never written to `.envrc`.
-
-## CLI Command Design
-
-### init
-
-- Create `.envrc` if missing
-- Insert managed block
-- Optional: suggest `direnv allow`
-
-### inherit
-
-    envrcctl inherit on
-    envrcctl inherit off
-
-Adds/removes `source_up` in managed block.
-
-### Non-Secret CRUD
-
-    envrcctl set VAR value
-    envrcctl unset VAR
-    envrcctl list
-    envrcctl get VAR
-
-Stored as plain export lines in managed block.
-
-### Secret CRUD
-
-    envrcctl secret set OPENAI_API_KEY --account openai:prod
-    envrcctl secret unset OPENAI_API_KEY
-    envrcctl secret list
-    envrcctl secret rotate OPENAI_API_KEY
-
-Secret input modes:
-
-- `--prompt` (default; uses getpass)
-- `--stdin` (CI safe)
-
-### inject
-
-Prints export statements for all secret refs:
-
-    export OPENAI_API_KEY='...'
-    export GITHUB_TOKEN='...'
-
-Used via:
-
-    eval "$(envrcctl inject)"
-
-### eval
-
-Shows effective environment including inheritance.
-
-Secrets masked by default:
-
-    OPENAI_API_KEY = ****** (from parent, secret)
-    GITHUB_TOKEN   = ****** (from current dir, secret)
-
-## Usage (Phase 1)
-
-1. Initialize the managed block:
-
-    envrcctl init
-
-2. Set non-secret exports:
-
-    envrcctl set FOO bar
-    envrcctl get FOO
-    envrcctl list
+```sh
+envrcctl set FOO bar
+envrcctl get FOO
+envrcctl list
+```
 
 3. Enable inheritance:
 
-    envrcctl inherit on
+```sh
+envrcctl inherit on
+```
 
-4. Store a secret (prompt):
+4. Store a secret:
 
-    envrcctl secret set OPENAI_API_KEY --account openai:prod
+```sh
+envrcctl secret set OPENAI_API_KEY --account openai:prod
+```
 
-   Or via stdin (CI-safe):
+5. Ensure your `.envrc` includes:
 
-    echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
+```sh
+eval "$(envrcctl inject)"
+```
 
-5. Ensure `.envrc` evaluates injected secrets (added by `init`):
+6. Allow direnv:
 
-    eval "$(envrcctl inject)"
+```sh
+direnv allow
+```
 
-6. Inspect secret references:
+## Commands
 
-    envrcctl secret list
+### Non-secret variables
 
-## Usage (Phase 2)
+```sh
+envrcctl set VAR value
+envrcctl unset VAR
+envrcctl get VAR
+envrcctl list
+```
 
-1. View the effective environment (secrets masked):
+### Secrets
 
-    envrcctl eval
+```sh
+envrcctl secret set OPENAI_API_KEY --account openai:prod
+envrcctl secret unset OPENAI_API_KEY
+envrcctl secret list
+```
 
-2. Run diagnostics:
+For CI-safe input:
 
-    envrcctl doctor
+```sh
+echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
+```
 
-3. Migrate unmanaged exports into the managed block:
+### Inject secrets for direnv
 
-    envrcctl migrate
+```sh
+envrcctl inject
+```
 
-## Shell Completion
+### Effective view (masked)
 
-Typer provides built-in completion options:
+```sh
+envrcctl eval
+```
 
-    envrcctl --install-completion
-    envrcctl --show-completion bash
-    envrcctl --show-completion zsh
-    envrcctl --show-completion fish
+### Diagnostics
 
-Pre-generated scripts live in the `completions/` directory.
-To refresh them, run:
+```sh
+envrcctl doctor
+```
 
-    uv run python scripts/generate_completions.py
+### Migration
 
-## Backend Selection (Phase 3)
+```sh
+envrcctl migrate
+```
 
-envrcctl selects a secret backend by platform, or from `ENVRCCTL_BACKEND`.
+## Backend Selection (macOS/Linux)
+
+envrcctl selects a backend automatically by platform, or via `ENVRCCTL_BACKEND`.
 
 Supported schemes:
 
-- `kc` (macOS Keychain)
-- `ss` (SecretService via `secret-tool`)
+- `kc` — macOS Keychain
+- `ss` — SecretService via `secret-tool`
 
-Example override: `ENVRCCTL_BACKEND=ss envrcctl secret set OPENAI_API_KEY --account openai:prod`
+Example:
 
-Secret references are stored as `<scheme>:<service>:<account>` (e.g. `kc:com.rio.envrcctl:openai:prod`).
+```sh
+ENVRCCTL_BACKEND=ss envrcctl secret set OPENAI_API_KEY --account openai:prod
+```
 
-## Security Principles
+Secret references are stored as:
 
-- No secrets in CLI arguments
-- No secrets written to `.envrc`
-- Atomic writes for file updates
-- TTY check for any --plain secret output
-- Optional warning if `.envrc` is world-writable
-- Managed block isolation
+```
+<scheme>:<service>:<account>
+```
 
-## Implementation Phases
+Example:
 
-### Phase 1 (MVP)
+```
+kc:com.rio.envrcctl:openai:prod
+ss:com.rio.envrcctl:openai:prod
+```
 
-- init
-- set/unset/list (non-secret)
-- secret set/unset/list
-- inject
-- inherit on/off
-- macOS Keychain backend
+## Shell Completion
 
-### Phase 2
+```sh
+envrcctl --install-completion
+envrcctl --show-completion bash
+envrcctl --show-completion zsh
+envrcctl --show-completion fish
+```
 
-- eval command
-- doctor (security diagnostics)
-- migrate existing `.envrc`
-- shell completion
+Generated scripts are stored under `completions/`. To refresh:
 
-### Phase 3
+```sh
+uv run python scripts/generate_completions.py
+```
 
-- Linux SecretService backend
-- Pluggable backend detection
-- Ref schema extension
+## Security Notes
 
-## Packaging Strategy
-
-- Python 3.10+
-- CLI via Typer or Click
-- Installable via pipx
-- Single-package distribution
-
-## Future Expansion
-
-- Policy enforcement mode (no unmanaged exports allowed)
-- CI-safe mode
-- Team-managed secret namespaces
-- Ref validation and rotation workflows
+- Secrets are never written to `.envrc`
+- Secrets are never passed in CLI arguments
+- `.envrc` updates are atomic
+- The tool warns on world-writable `.envrc`
 
 ## Development
 
-This project is managed with `uv`.
+```sh
+uv sync
+.venv/bin/envrcctl --help
+```
 
 ## License
 
