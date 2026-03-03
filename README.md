@@ -146,6 +146,38 @@ Secrets masked by default:
     OPENAI_API_KEY = ****** (from parent, secret)
     GITHUB_TOKEN   = ****** (from current dir, secret)
 
+## Usage (Phase 1)
+
+1. Initialize the managed block:
+
+    envrcctl init
+
+2. Set non-secret exports:
+
+    envrcctl set FOO bar
+    envrcctl get FOO
+    envrcctl list
+
+3. Enable inheritance:
+
+    envrcctl inherit on
+
+4. Store a secret (prompt):
+
+    envrcctl secret set OPENAI_API_KEY --account openai:prod
+
+   Or via stdin (CI-safe):
+
+    echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
+
+5. Ensure `.envrc` evaluates injected secrets (added by `init`):
+
+    eval "$(envrcctl inject)"
+
+6. Inspect secret references:
+
+    envrcctl secret list
+
 ## Security Principles
 
 - No secrets in CLI arguments

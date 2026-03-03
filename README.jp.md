@@ -145,6 +145,45 @@ Keychain での対応:
     OPENAI_API_KEY = ****** (from parent, secret)
     GITHUB_TOKEN   = ****** (from current dir, secret)
 
+## 使い方（Phase 1）
+
+1. 初期化（管理ブロック作成）
+```
+envrcctl init
+```
+
+2. シークレット以外の環境変数を設定
+```
+envrcctl set FOO bar
+envrcctl get FOO
+envrcctl list
+```
+
+3. 親ディレクトリ継承を有効化
+```
+envrcctl inherit on
+```
+
+4. シークレットを登録（プロンプト入力）
+```
+envrcctl secret set OPENAI_API_KEY --account openai:prod
+```
+
+5. CI 向けに標準入力で登録
+```
+echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
+```
+
+6. `.envrc` で inject を呼び出し
+```
+eval "$(envrcctl inject)"
+```
+
+7. シークレット参照の一覧
+```
+envrcctl secret list
+```
+
 ## セキュリティ原則
 
 - CLI 引数にシークレットを渡さない

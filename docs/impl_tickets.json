@@ -7,7 +7,7 @@
       "id": "phase-1",
       "name": "Phase 1 — MVP (macOS)",
       "goal": "CLI for managed .envrc with non-secret/secret CRUD, inherit toggle, inject, macOS Keychain backend.",
-      "status": "in-progress",
+      "status": "done",
       "tasks": [
         {
           "id": "p1-01",
@@ -103,7 +103,7 @@
         {
           "id": "p1-11",
           "title": "Phase 1 docs and examples",
-          "status": "planned",
+          "status": "done",
           "inputs": ["CLI behavior", "Managed block format"],
           "outputs": ["Usage examples", "Minimal docs update"]
         }
