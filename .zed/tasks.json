@@ -1,0 +1,14 @@
+[
+  {
+    "label": "verify",
+    "command": "./.zed/scripts/verify"
+  },
+  {
+    "label": "git status",
+    "command": "git status -sb"
+  },
+  {
+    "label": "git diff",
+    "command": "git diff"
+  }
+]
