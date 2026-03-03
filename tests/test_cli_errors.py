@@ -5,7 +5,6 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from envrcctl import cli
-from envrcctl.envrc import ENVRC_FILENAME
 
 
 def test_init_fails_when_direnv_missing(tmp_path: Path, monkeypatch) -> None:
