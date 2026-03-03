@@ -408,7 +408,7 @@
         {
           "id": "p6-01",
           "title": "Exec command CLI design",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Existing CLI command tree", "Inject workflow behavior"],
           "outputs": [
             "exec command signature with -- passthrough",
@@ -418,7 +418,7 @@
         {
           "id": "p6-02",
           "title": "Exec runner implementation",
-          "status": "planned",
+          "status": "done",
           "inputs": ["Managed block model", "Secret backend resolution"],
           "outputs": [
             "Child-process env injection without stdout secret emission",
@@ -428,7 +428,7 @@
         {
           "id": "p6-03",
           "title": "TTY guard for plaintext secret output",
-          "status": "planned",
+          "status": "done",
           "inputs": ["inject behavior", "TTY detection strategy"],
           "outputs": [
             "Non-interactive blocking for inject",
@@ -439,7 +439,7 @@
         {
           "id": "p6-04",
           "title": "Exec + TTY guard tests",
-          "status": "planned",
+          "status": "done",
           "inputs": ["CLI test harness", "TTY behavior controls"],
           "outputs": [
             "Unit tests for TTY guard behavior",
