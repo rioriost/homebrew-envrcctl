@@ -3,10 +3,12 @@
 ## Pre-release
 - [ ] Update version in `pyproject.toml` and any release notes.
 - [ ] Ensure dependencies are up to date (`uv.lock` refreshed if needed).
+- [ ] Confirm module/package naming is consistent (`envrcctl`, `src/envrcctl`).
 - [ ] Confirm README examples are accurate.
 
 ## Security Review
 - [ ] Review `docs/threat_model.md` for accuracy.
+- [ ] Review `docs/security_command_inventory.md` for accuracy.
 - [ ] Run `envrcctl doctor` on a representative repo to confirm warnings are helpful.
 - [ ] Verify that no secrets are written to `.envrc`.
 - [ ] Ensure secret ref validation rules are unchanged or documented.
@@ -14,10 +16,12 @@
 ## Verification
 - [ ] Run `./.zed/scripts/verify` on this branch.
 - [ ] Run `./.zed/scripts/verify-release` for coverage and security linting.
+- [ ] Run `uv run python -m envrcctl.main --help` (or `envrcctl --help`) to verify entry point.
 - [ ] Confirm no new warnings in tests related to secret handling.
 
 ## Packaging
 - [ ] Build sdist/wheel with `hatchling` (or release toolchain).
+- [ ] Verify artifacts include `src/envrcctl/**` and the `envrcctl.main:main` entry point.
 - [ ] Install from the built artifact and run a smoke test:
   - `envrcctl init`
   - `envrcctl set FOO bar`
