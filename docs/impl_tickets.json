@@ -403,7 +403,7 @@
       "id": "phase-6",
       "name": "Phase 6 — Exec Mode & TTY Guard",
       "goal": "Add exec-based secret injection without stdout and block plaintext output in non-interactive runs.",
-      "status": "planned",
+      "status": "done",
       "tasks": [
         {
           "id": "p6-01",
