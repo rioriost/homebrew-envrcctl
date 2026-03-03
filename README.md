@@ -37,6 +37,12 @@ brew install envrcctl
 
 After release, Homebrew will download the release from GitHub.
 
+Install direnv with Homebrew:
+
+```sh
+brew install direnv
+```
+
 ### Linux (pipx, recommended)
 
 ```sh
@@ -225,6 +231,11 @@ uv run python scripts/generate_completions.py
 uv sync
 .venv/bin/envrcctl --help
 ```
+
+## Acknowledgements
+
+Based on the article below, I added commands such as `exec`. Thank you for the helpful hints.  
+“[もう.envにAPIキーを平文で置くのはやめた — macOS Keychain管理CLI「LLM Key Ring」](https://zenn.dev/yottayoshida/articles/llm-key-ring-secure-api-key-management)”
 
 ## License
 
