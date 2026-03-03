@@ -1,285 +1,152 @@
 # envrcctl
 
-envrcctl は macOS を優先しつつ Linux にも対応可能な CLI ツールで、direnv で使われる `.envrc` を安全かつ構造的に管理します。
+envrcctl は `.envrc` を安全に管理するための CLI ツールです。シークレットは
+ファイルには書かず、OS のキーストア（macOS Keychain / Linux SecretService）
+に保存します。
 
-着想元:
-https://zenn.dev/yottayoshida/articles/llm-key-ring-secure-api-key-management
+macOS を優先しつつ、Linux でも `secret-tool` を使った運用に対応します。
 
-## 目標
+## 特長
 
-- OS のキーストアに保存されたシークレットを安全に管理
-- シークレット以外の環境変数を管理
-- 親ディレクトリの継承（`source_up`）をサポート
-- CRUD 操作を提供
-- 管理ブロック編集のみにより `.envrc` を安全に保つ
-- 将来的にプラガブルなシークレットバックエンドで Linux 対応
+- `.envrc` は管理ブロックのみを安全に編集
+- シークレット以外の環境変数を CRUD 管理
+- シークレットは Keychain / SecretService に保管
+- 継承制御（`source_up` on/off）
+- direnv 向けの secret 注入（`eval "$(envrcctl inject)"`）
+- 診断・移行コマンド
+- シェル補完
 
-## アーキテクチャ
+## 前提条件
 
-### Core（OS 非依存）
+- Python 3.14+
+- `direnv`（`.envrc` を使う場合）
+- macOS Keychain（標準搭載）または Linux SecretService（`secret-tool`）
 
-担当範囲:
+## インストール
 
-- 管理ブロックの検出・再生成
-- シークレット以外の CRUD
-- シークレット参照の管理
-- 継承の切り替え（source_up の on/off）
-- `.envrc` の原子的書き込み
-- `inject` コマンド（export 文の生成）
-- `eval` コマンド（有効なマージ結果の表示）
-- CLI インターフェース
+### pipx（推奨）
 
-### シークレットバックエンドインターフェース
+    pipx install envrcctl
 
-抽象インターフェース:
+### uv
 
-    class SecretBackend:
-        def get(ref) -> str
-        def set(ref, value)
-        def delete(ref)
-        def list(prefix=None)
+    uv tool install envrcctl
 
-初期実装:
+### ソースから
 
-- macOS: `/usr/bin/security` CLI を使用する KeychainBackend
+    git clone <REPO_URL>
+    cd envrcctl
+    uv sync
+    uv run python -m envrctl.main --help
 
-将来的な Linux:
+> Homebrew: `Formula/envrcctl.rb` にテンプレートがあります。
+> リリース用の URL/sha256 を置き換えて利用できます。
 
-- SecretServiceBackend（secret-tool / libsecret）
-- pass / keyring ベースのバックエンドの可能性
+## クイックスタート
 
-## 管理ブロック形式
+1. `.envrc` に管理ブロックを作成:
 
-`.envrc` には次の管理セクションが含まれます:
+    envrcctl init
 
-    # >>> envrcctl:begin
-    # managed: true
+2. シークレット以外を追加:
 
-    source_up  # optional (inherit on)
+    envrcctl set FOO bar
+    envrcctl get FOO
+    envrcctl list
 
-    export BREWFILE="$PWD/Brewfile"
+3. 継承を有効化:
 
-    export ENVRCCTL_SECRET_OPENAI_API_KEY="kc:com.rio.envrcctl:openai:prod"
+    envrcctl inherit on
+
+4. シークレット登録:
+
+    envrcctl secret set OPENAI_API_KEY --account openai:prod
+
+5. `.envrc` に inject を追加（`init` が付与）:
 
     eval "$(envrcctl inject)"
 
-    # <<< envrcctl:end
+6. direnv を許可:
 
-ルール:
+    direnv allow
 
-- ツールは begin/end の間だけを編集
-- それ以外は完全に保持
-- 変更時はブロック全体を再生成
+## コマンド
 
-## シークレット保管モデル
-
-参照形式:
-
-    kc:<service>:<account>
-
-例:
-
-    kc:com.rio.envrcctl:openai:prod
-
-Keychain での対応:
-
-- service = com.rio.envrcctl
-- account = openai:prod
-- value = 実際のシークレット
-
-シークレットは `.envrc` に書き込まれません。
-
-## CLI コマンド設計
-
-### init
-
-- `.envrc` がなければ作成
-- 管理ブロックを挿入
-- 任意: `direnv allow` の案内
-
-### inherit
-
-    envrcctl inherit on
-    envrcctl inherit off
-
-管理ブロック内の `source_up` を追加/削除します。
-
-### シークレット以外の CRUD
+### シークレット以外
 
     envrcctl set VAR value
     envrcctl unset VAR
-    envrcctl list
     envrcctl get VAR
+    envrcctl list
 
-管理ブロック内に平文の export として保存します。
-
-### シークレット CRUD
+### シークレット
 
     envrcctl secret set OPENAI_API_KEY --account openai:prod
     envrcctl secret unset OPENAI_API_KEY
     envrcctl secret list
-    envrcctl secret rotate OPENAI_API_KEY
 
-シークレット入力モード:
+CI 向け（標準入力）:
 
-- `--prompt`（デフォルト: getpass 使用）
-- `--stdin`（CI 向け）
+    echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
 
-### inject
+### direnv 用 inject
 
-すべてのシークレット参照に対して export 文を出力:
+    envrcctl inject
 
-    export OPENAI_API_KEY='...'
-    export GITHUB_TOKEN='...'
+### 有効環境（マスク表示）
 
-使用例:
+    envrcctl eval
 
-    eval "$(envrcctl inject)"
+### 診断
 
-### eval
+    envrcctl doctor
 
-継承を含む有効な環境を表示します。
+### 移行
 
-シークレットはデフォルトでマスク:
+    envrcctl migrate
 
-    OPENAI_API_KEY = ****** (from parent, secret)
-    GITHUB_TOKEN   = ****** (from current dir, secret)
+## バックエンド選択（macOS/Linux）
 
-## 使い方（Phase 1）
+バックエンドは自動選択されますが、`ENVRCCTL_BACKEND` で指定できます。
 
-1. 初期化（管理ブロック作成）
-```
-envrcctl init
-```
+- `kc` — macOS Keychain
+- `ss` — SecretService（`secret-tool`）
 
-2. シークレット以外の環境変数を設定
-```
-envrcctl set FOO bar
-envrcctl get FOO
-envrcctl list
-```
+例:
 
-3. 親ディレクトリ継承を有効化
-```
-envrcctl inherit on
-```
+    ENVRCCTL_BACKEND=ss envrcctl secret set OPENAI_API_KEY --account openai:prod
 
-4. シークレットを登録（プロンプト入力）
-```
-envrcctl secret set OPENAI_API_KEY --account openai:prod
-```
+シークレット参照は次の形式で保存されます:
 
-5. CI 向けに標準入力で登録
-```
-echo -n "$OPENAI_API_KEY" | envrcctl secret set OPENAI_API_KEY --account openai:prod --stdin
-```
-
-6. `.envrc` で inject を呼び出し
-```
-eval "$(envrcctl inject)"
-```
-
-7. シークレット参照の一覧
-```
-envrcctl secret list
-```
-
-## 使い方（Phase 2）
-
-1. 有効な環境の表示（シークレットはマスク）
-```
-envrcctl eval
-```
-
-2. セキュリティ/整合性チェック
-```
-envrcctl doctor
-```
-
-3. 未管理の export/secret ref を管理ブロックに移行
-```
-envrcctl migrate
-```
-
-4. シェル補完の有効化
-```
-envrcctl --install-completion
-```
-
-補完スクリプトを明示的に生成する場合:
-```
-envrcctl --show-completion bash > completions/envrcctl.bash
-```
-
-リポジトリには `scripts/generate_completions.py` と `completions/` を用意してあります。
-
-## バックエンド選択（Phase 3）
-
-バックエンドは環境変数 `ENVRCCTL_BACKEND` で指定できます。
-
-- `kc`: macOS Keychain（既定）
-- `ss`: SecretService（Linux、`secret-tool` が必要）
-
-参照形式は次の通りです。
-
-- `kc:<service>:<account>`
-- `ss:<service>:<account>`
+    <scheme>:<service>:<account>
 
 例:
 
     kc:com.rio.envrcctl:openai:prod
     ss:com.rio.envrcctl:openai:prod
 
-## セキュリティ原則
+## シェル補完
 
-- CLI 引数にシークレットを渡さない
-- `.envrc` にシークレットを書き込まない
-- ファイル更新は原子的に行う
-- もし平文出力がある場合は TTY を確認
-- `.envrc` が world-writable の場合に警告
-- 管理ブロックの隔離
+    envrcctl --install-completion
+    envrcctl --show-completion bash
+    envrcctl --show-completion zsh
+    envrcctl --show-completion fish
 
-## 実装フェーズ
+生成済みスクリプトは `completions/` にあります。更新する場合:
 
-### Phase 1（MVP）
+    uv run python scripts/generate_completions.py
 
-- init
-- set/unset/list（シークレット以外）
-- secret set/unset/list
-- inject
-- inherit on/off
-- macOS Keychain backend
+## セキュリティ
 
-### Phase 2
-
-- eval コマンド
-- doctor（セキュリティ診断）
-- 既存 `.envrc` の migrate
-- shell completion
-
-### Phase 3
-
-- Linux SecretService backend
-- プラガブルなバックエンド検出
-- 参照スキーマの拡張
-
-## パッケージング戦略
-
-- Python 3.10+
-- CLI は Typer または Click
-- pipx でインストール可能
-- 単一パッケージ配布
-
-## 将来的な拡張
-
-- ポリシー強制モード（未管理の export を禁止）
-- CI セーフモード
-- チーム管理のシークレット名前空間
-- 参照の検証とローテーションのワークフロー
+- シークレットは `.envrc` に書き込まれません
+- シークレットを CLI 引数で渡しません
+- `.envrc` の更新は原子的に行われます
+- `.envrc` が world-writable の場合に警告します
 
 ## 開発
 
-このプロジェクトは `uv` で管理します。
+    uv sync
+    .venv/bin/envrcctl --help
 
 ## ライセンス
 
