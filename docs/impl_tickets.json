@@ -300,11 +300,12 @@
         {
           "id": "p5-05",
           "title": "Guarantee inject-only secret output",
-          "status": "planned",
+          "status": "done",
           "inputs": ["CLI output paths"],
           "outputs": [
             "Assertions that only inject emits secret values",
-            "Tests covering non-inject output safety"
+            "Tests covering non-inject output safety",
+            "tests/test_cli.py"
           ]
         },
         {

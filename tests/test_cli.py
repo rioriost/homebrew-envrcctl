@@ -103,6 +103,43 @@ def test_cli_secret_set_inject_unset(tmp_path: Path, monkeypatch) -> None:
     assert "ENVRCCTL_SECRET_OPENAI_API_KEY" not in envrc_text
 
 
+def test_cli_outputs_do_not_leak_secret_except_inject(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+
+    runner.invoke(cli.app, ["init"])
+
+    secret = "supersecret"
+    result = runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input=secret,
+    )
+    assert result.exit_code == 0
+    assert secret not in result.stdout
+    assert secret not in result.stderr
+
+    for args in [
+        ["secret", "list"],
+        ["eval"],
+        ["doctor"],
+    ]:
+        result = runner.invoke(cli.app, args)
+        assert result.exit_code == 0
+        assert secret not in result.stdout
+        assert secret not in result.stderr
+
+    result = runner.invoke(cli.app, ["inject"])
+    assert result.exit_code == 0
+    assert f"export TOKEN={secret}" in result.stdout
+
+
 def test_cli_eval_includes_parent(tmp_path: Path, monkeypatch) -> None:
     parent_dir = tmp_path / "parent"
     child_dir = parent_dir / "child"
