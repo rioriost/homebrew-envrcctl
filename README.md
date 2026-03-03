@@ -23,19 +23,27 @@ It is designed for macOS first, with Linux support via SecretService.
 
 ## Installation
 
-### With pipx (recommended)
+### macOS (Homebrew)
+
+A Homebrew formula template exists at `Formula/envrcctl.rb`. Replace the URL/SHA256 with a release tarball, then install:
+
+```sh
+brew install --formula ./Formula/envrcctl.rb
+```
+
+### Linux (pipx, recommended)
 
 ```sh
 pipx install envrcctl
 ```
 
-### With uv
+### Linux (uv)
 
 ```sh
 uv tool install envrcctl
 ```
 
-### From source
+### From source (macOS/Linux)
 
 ```sh
 git clone <REPO_URL>
@@ -43,9 +51,6 @@ cd envrcctl
 uv sync
 uv run python -m envrctl.main --help
 ```
-
-> Homebrew: a formula template exists at `Formula/envrcctl.rb` for future
-> publishing. Replace the URL/SHA256 with a release tarball to use it.
 
 ## Quick Start
 
