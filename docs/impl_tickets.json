@@ -193,6 +193,48 @@
           "outputs": ["Updated docs and migration notes"]
         }
       ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Phase 4 — Test & Coverage Workflow",
+      "goal": "Align dev dependencies, verify flow, and coverage target.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p4-01",
+          "title": "Move pytest/pytest-cov to dev-only dependencies",
+          "status": "planned",
+          "inputs": ["Current pyproject.toml dependencies"],
+          "outputs": ["pytest/pytest-cov marked as dev-only"]
+        },
+        {
+          "id": "p4-02",
+          "title": "Add Work loop-appropriate tests for verify",
+          "status": "planned",
+          "inputs": ["Work loop verify requirement"],
+          "outputs": ["Stable test set for verify runs"]
+        },
+        {
+          "id": "p4-03",
+          "title": "Add verify-release coverage script and tasks.json entry",
+          "status": "planned",
+          "inputs": ["Coverage workflow requirements"],
+          "outputs": [
+            ".zed/scripts/verify-release",
+            "tasks.json entry for verify-release"
+          ]
+        },
+        {
+          "id": "p4-04",
+          "title": "Enforce 90% coverage improvement loop",
+          "status": "planned",
+          "inputs": ["Coverage target 90%"],
+          "outputs": [
+            "Coverage policy documented",
+            "Loop to add tests until coverage >= 90%"
+          ]
+        }
+      ]
     }
   ]
 }
