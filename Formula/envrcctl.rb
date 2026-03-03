@@ -7,6 +7,7 @@ class Envrcctl < Formula
   sha256 "1e3ae002295b28da1ea260de0e872b0b1be566176161f6c3a0ad3e9e52505a96"
   license "MIT"
 
+
   depends_on "python@3.14"
 
   resource "typer" do
