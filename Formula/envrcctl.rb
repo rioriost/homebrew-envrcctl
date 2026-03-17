@@ -58,7 +58,7 @@ class Envrcctl < Formula
            "scripts/macos/envrcctl-macos-auth.swift",
            helper_output.to_s
 
-    env_wrapper = libexec/"bin"
+    env_wrapper = libexec/"wrapper-bin"
     env_wrapper.mkpath
 
     (env_wrapper/"envrcctl").write_env_script(
