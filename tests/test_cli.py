@@ -23,6 +23,12 @@ class DummyBackend:
     def get_with_auth(self, ref, reason: str | None = None) -> str:
         return self.get(ref)
 
+    def get_many_with_auth(self, refs, reason: str | None = None):
+        return {
+            (ref.service, ref.account): self._store[(ref.service, ref.account)]
+            for ref in refs
+        }
+
     def set(self, ref, value: str) -> None:
         self._store[(ref.service, ref.account)] = value
 
@@ -158,15 +164,15 @@ def test_cli_exec_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     dummy = DummyBackend()
-    auth_calls: list[tuple[str, str, str | None]] = []
+    auth_calls: list[tuple[list[tuple[str, str]], str | None]] = []
 
-    def fake_get_with_auth(ref, reason: str | None = None) -> str:
-        auth_calls.append((ref.service, ref.account, reason))
-        return dummy.get(ref)
+    def fake_get_many_with_auth(refs, reason: str | None = None):
+        auth_calls.append(([(ref.service, ref.account) for ref in refs], reason))
+        return {(ref.service, ref.account): dummy.get(ref) for ref in refs}
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
-    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(dummy, "get_many_with_auth", fake_get_many_with_auth)
     monkeypatch.setattr(cli.sys, "platform", "darwin")
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
@@ -183,8 +189,7 @@ def test_cli_exec_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
     assert result.exit_code == 0
     assert auth_calls == [
         (
-            "st.rio.envrcctl",
-            "acct",
+            [("st.rio.envrcctl", "acct")],
             "Execute command with envrcctl",
         )
     ]
@@ -225,12 +230,12 @@ def test_cli_exec_on_macos_fails_closed_when_auth_is_cancelled(
     runner = CliRunner()
     dummy = DummyBackend()
 
-    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+    def fake_get_many_with_auth(refs, reason: str | None = None):
         raise EnvrcctlError("Authentication cancelled.")
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
-    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(dummy, "get_many_with_auth", fake_get_many_with_auth)
     monkeypatch.setattr(cli.sys, "platform", "darwin")
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
@@ -363,15 +368,15 @@ def test_cli_inject_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     dummy = DummyBackend()
-    auth_calls: list[tuple[str, str, str | None]] = []
+    auth_calls: list[tuple[list[tuple[str, str]], str | None]] = []
 
-    def fake_get_with_auth(ref, reason: str | None = None) -> str:
-        auth_calls.append((ref.service, ref.account, reason))
-        return dummy.get(ref)
+    def fake_get_many_with_auth(refs, reason: str | None = None):
+        auth_calls.append(([(ref.service, ref.account) for ref in refs], reason))
+        return {(ref.service, ref.account): dummy.get(ref) for ref in refs}
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
-    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(dummy, "get_many_with_auth", fake_get_many_with_auth)
     monkeypatch.setattr(cli.sys, "platform", "darwin")
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
@@ -385,7 +390,9 @@ def test_cli_inject_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
     result = runner.invoke(cli.app, ["inject"])
     assert result.exit_code == 0
     assert "export TOKEN=secretvalue" in result.stdout
-    assert auth_calls == [("st.rio.envrcctl", "acct", "Inject secrets with envrcctl")]
+    assert auth_calls == [
+        ([("st.rio.envrcctl", "acct")], "Inject secrets with envrcctl")
+    ]
 
 
 def test_cli_inject_on_macos_force_does_not_bypass_auth_failure(
@@ -395,12 +402,12 @@ def test_cli_inject_on_macos_force_does_not_bypass_auth_failure(
     runner = CliRunner()
     dummy = DummyBackend()
 
-    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+    def fake_get_many_with_auth(refs, reason: str | None = None):
         raise EnvrcctlError("Authentication unavailable.")
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
-    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(dummy, "get_many_with_auth", fake_get_many_with_auth)
     monkeypatch.setattr(cli.sys, "platform", "darwin")
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
@@ -445,6 +452,49 @@ def test_cli_exec_skips_admin_secrets(tmp_path: Path, monkeypatch) -> None:
     script = "import os, sys; sys.exit(0 if os.getenv('ADMIN_TOKEN') is None else 1)"
     result = runner.invoke(cli.app, ["exec", "--", sys.executable, "-c", script])
     assert result.exit_code == 0
+
+
+def test_cli_secret_unset_preserves_shared_keychain_item(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TEST_TOKEN", "--account", "acct", "--stdin"],
+        input="sharedsecret",
+    )
+
+    envrc_path = tmp_path / ENVRC_FILENAME
+    envrc_text = _read_envrc(envrc_path)
+    envrc_text = envrc_text.replace(
+        "export ENVRCCTL_SECRET_TEST_TOKEN=kc:st.rio.envrcctl:acct:runtime",
+        "\n".join(
+            [
+                "export ENVRCCTL_SECRET_TEST_TOKEN=kc:st.rio.envrcctl:acct:runtime",
+                "export ENVRCCTL_SECRET_UV_PUBLISH_TOKEN=kc:st.rio.envrcctl:acct:runtime",
+            ]
+        ),
+    )
+    envrc_path.write_text(envrc_text, encoding="utf-8")
+
+    result = runner.invoke(cli.app, ["secret", "unset", "TEST_TOKEN"])
+    assert result.exit_code == 0
+
+    result = runner.invoke(
+        cli.app,
+        ["secret", "get", "UV_PUBLISH_TOKEN", "--plain"],
+    )
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "sharedsecret"
 
 
 def test_cli_exec_rejects_admin_when_selected(tmp_path: Path, monkeypatch) -> None:

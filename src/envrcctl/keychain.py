@@ -76,7 +76,18 @@ class KeychainBackend(SecretBackend):
         if not refs:
             return {}
 
-        items = [{"service": ref.service, "account": ref.account} for ref in refs]
+        unique_refs: list[SecretRef] = []
+        seen_refs: set[tuple[str, str]] = set()
+        for ref in refs:
+            key = (ref.service, ref.account)
+            if key in seen_refs:
+                continue
+            seen_refs.add(key)
+            unique_refs.append(ref)
+
+        items = [
+            {"service": ref.service, "account": ref.account} for ref in unique_refs
+        ]
         payload = json.dumps({"items": items})
 
         output = self._run_auth_helper(
@@ -87,7 +98,7 @@ class KeychainBackend(SecretBackend):
                 reason
                 or (
                     "envrcctl needs device owner authentication to access secrets for "
-                    + ", ".join(ref.account for ref in refs)
+                    + ", ".join(ref.account for ref in unique_refs)
                     + "."
                 ),
             ],
@@ -131,7 +142,7 @@ class KeychainBackend(SecretBackend):
                 )
             values[key] = value
 
-        expected = {(ref.service, ref.account) for ref in refs}
+        expected = {(ref.service, ref.account) for ref in unique_refs}
         missing = expected - set(values.keys())
         if missing:
             missing_list = ", ".join(

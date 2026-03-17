@@ -15,6 +15,7 @@ It is designed for macOS first, with Linux support via SecretService.
 - Secret injection for direnv (`eval "$(envrcctl inject)"`, TTY-guarded on Linux, TTY + macOS auth on macOS)
 - Secret kinds (runtime/admin), with exec injecting runtime only
 - Secret get with clipboard default and TTY guard on Linux, plus macOS auth on macOS
+- On macOS, `inject` and `exec` retrieve multiple runtime secrets with a single device owner authentication prompt
 - Diagnostics and migration helpers
 - Shell completion scripts
 
@@ -195,6 +196,7 @@ Exec injects runtime secrets only.
 
 - On Linux, the current behavior remains in place.
 - On macOS, `exec` requires the existing interactive-shell check and successful macOS device owner authentication before runtime secrets are injected into the child process.
+- When multiple runtime secrets are selected, macOS performs a single authentication step and then retrieves all requested secrets in one helper call.
 
 In practice, macOS authentication may use Touch ID and, when supported by your system configuration, Apple Watch approval or password fallback.
 
@@ -209,6 +211,8 @@ Linux keeps the current behavior: non-interactive runs are blocked unless `--for
 On macOS, `envrcctl inject` requires both:
 - the existing interactive-shell check
 - successful macOS device owner authentication
+
+When multiple runtime secrets are present, `inject` performs one authentication step and retrieves all eligible secrets in a single bulk helper request.
 
 That authentication is expected to be satisfied through macOS mechanisms such as Touch ID and, when your system offers it, Apple Watch approval or password fallback.
 

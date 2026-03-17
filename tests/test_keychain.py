@@ -274,6 +274,55 @@ def test_keychain_get_many_with_auth_uses_default_reason(
     assert "acct" in args[4]
 
 
+def test_keychain_get_many_with_auth_deduplicates_duplicate_refs(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls = []
+
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    response = {
+        "items": [
+            {"service": "svc", "account": "acct", "value": "secret"},
+        ]
+    }
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return DummyResult(stdout=json.dumps(response))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [
+        SecretRef(scheme="kc", service="svc", account="acct", kind="runtime"),
+        SecretRef(scheme="kc", service="svc", account="acct", kind="runtime"),
+    ]
+
+    values = backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert values == {("svc", "acct"): "secret"}
+    assert len(calls) == 1
+
+    args, kwargs = calls[0]
+    assert args == [
+        str(helper_path),
+        "--input-json",
+        "-",
+        "--reason",
+        "Inject secrets with envrcctl",
+    ]
+    payload = json.loads(kwargs["input"])
+    assert payload == {
+        "items": [
+            {"service": "svc", "account": "acct"},
+        ]
+    }
+
+
 def test_keychain_get_many_with_auth_requires_existing_helper(
     monkeypatch, tmp_path: Path
 ) -> None:

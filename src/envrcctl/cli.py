@@ -328,8 +328,16 @@ def secret_unset(var: str) -> None:
         if not ref:
             raise EnvrcctlError(f"{var} has no secret reference.")
         parsed = parse_ref(ref)
-        backend = backend_for_ref(parsed)
-        backend.delete(parsed)
+
+        shared_ref_in_use = any(
+            name != var and other_ref == ref
+            for name, other_ref in block.secret_refs.items()
+        )
+
+        if not shared_ref_in_use:
+            backend = backend_for_ref(parsed)
+            backend.delete(parsed)
+
         block.secret_refs.pop(var, None)
         _write_envrc(doc, block)
 
