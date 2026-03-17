@@ -323,6 +323,48 @@ def test_keychain_get_many_with_auth_deduplicates_duplicate_refs(
     }
 
 
+def test_keychain_get_many_with_auth_returns_empty_for_no_refs() -> None:
+    backend = KeychainBackend()
+
+    values = backend.get_many_with_auth([])
+
+    assert values == {}
+
+
+def test_keychain_get_many_with_auth_rejects_missing_expected_items(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(
+            stdout=json.dumps(
+                {
+                    "items": [
+                        {"service": "svc", "account": "acct1", "value": "secret1"},
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [
+        SecretRef(scheme="kc", service="svc", account="acct1", kind="runtime"),
+        SecretRef(scheme="kc", service="svc", account="acct2", kind="runtime"),
+    ]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "missing secrets" in str(exc.value).lower()
+    assert "svc/acct2" in str(exc.value)
+
+
 def test_keychain_get_many_with_auth_requires_existing_helper(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -459,6 +501,76 @@ def test_keychain_get_many_with_auth_rejects_missing_values(
         backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "value" in str(exc.value).lower()
+
+
+def test_keychain_get_many_with_auth_rejects_non_dict_items(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(stdout=json.dumps({"items": ["not-a-dict"]}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "invalid item" in str(exc.value).lower()
+
+
+def test_keychain_get_many_with_auth_rejects_invalid_item_payload(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(
+            stdout=json.dumps(
+                {"items": [{"service": "svc", "account": 123, "value": "secret"}]}
+            )
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "invalid item payload" in str(exc.value).lower()
+
+
+def test_keychain_get_many_with_auth_rejects_invalid_response_shape(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(stdout=json.dumps({"items": {"service": "svc"}}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "invalid response" in str(exc.value).lower()
 
 
 def test_keychain_get_many_with_auth_rejects_duplicate_entries(
