@@ -24,6 +24,7 @@ It is designed for macOS first, with Linux support via SecretService.
 - Python 3.14+
 - `direnv`
 - macOS Keychain (built-in) or Linux SecretService (`secret-tool`)
+- device owner authentication (TouchID or Apple Watch)
 
 ## Installation
 
