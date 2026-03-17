@@ -1,0 +1,68 @@
+{
+  "id": "p1-t2",
+  "phase": "phase-1",
+  "title": "Native helper implementation for macOS device owner authentication",
+  "status": "planned",
+  "summary": "Build a small Swift-based macOS helper that performs device owner authentication and authenticated Keychain reads for plaintext secret reveal flows.",
+  "user_intent": "Use macOS device owner authentication for secret reveal so Touch ID and OS-managed approval methods can gate plaintext output.",
+  "inputs": [
+    "docs/macos_device_owner_auth_plan.md",
+    "Current macOS Keychain backend in src/envrcctl/keychain.py",
+    "Current secret reveal/get behavior in src/envrcctl/cli.py",
+    "Current backend abstraction in src/envrcctl/secrets.py"
+  ],
+  "outputs": [
+    "Swift helper source file(s) for authenticated Keychain reads",
+    "Documented helper CLI contract (arguments, stdout, exit codes, stderr behavior)",
+    "Documented build/run instructions for local development",
+    "Defined error mapping for authentication and Keychain failures"
+  ],
+  "acceptance_criteria": [
+    "A native helper design is specified for macOS only.",
+    "The helper uses LocalAuthentication with deviceOwnerAuthentication.",
+    "The helper reads a Keychain generic password item by service and account only after successful OS authentication.",
+    "The helper prints the secret value to stdout only on success.",
+    "The helper never prints secret material in error output.",
+    "The helper returns non-zero exit status for authentication failure, cancellation, missing item, and invalid input.",
+    "The helper contract is specific enough for Python integration in a later task."
+  ],
+  "dependencies": [
+    "p1-t1"
+  ],
+  "implementation_notes": [
+    "Prefer Swift with Foundation, LocalAuthentication, and Security frameworks.",
+    "Use LAContext and evaluatePolicy(.deviceOwnerAuthentication, localizedReason: ...).",
+    "Pass the authentication context into the Keychain query via kSecUseAuthenticationContext.",
+    "Support service/account input only; avoid extra flags unless clearly needed.",
+    "Keep stderr concise and sanitized.",
+    "Do not rely on TTY checks or sudo.",
+    "Treat Apple Watch as OS-selected behavior under deviceOwnerAuthentication rather than an explicit factor choice."
+  ],
+  "risks": [
+    "Packaging the helper with the Python distribution may add complexity.",
+    "Apple Watch approval behavior may vary across macOS versions and host configuration.",
+    "Existing Keychain item creation flow may not yet use item-level access control."
+  ],
+  "verification": {
+    "automated": [
+      "Static review of helper CLI contract",
+      "Build validation on macOS",
+      "Mocked integration expectations for Python caller"
+    ],
+    "manual": [
+      "Successful auth via Touch ID on a supported Mac",
+      "Cancellation path returns failure without revealing the secret",
+      "Missing Keychain item returns failure with sanitized error",
+      "Apple Watch-assisted approval succeeds when offered by macOS"
+    ]
+  },
+  "non_goals": [
+    "Linux or cross-platform helper support",
+    "Migrating stored secrets to SecAccessControl-protected items in this task",
+    "Changing inject or exec behavior in this task"
+  ],
+  "notes": [
+    "This task defines and implements the native helper itself, not the Python CLI integration.",
+    "If legacy plaintext flags remain temporarily, they should be wired in a later integration task to this authenticated path."
+  ]
+}

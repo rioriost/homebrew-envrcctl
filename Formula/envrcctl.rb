@@ -3,12 +3,12 @@ class Envrcctl < Formula
 
   desc "Secure, structured management of .envrc files"
   homepage "https://github.com/rioriost/homebrew-envrcctl"
-  url "https://files.pythonhosted.org/packages/a7/f0/156063195fb8137c7f58a39f7553cae1b85ba6c94c63e2d1eb3c2ff2b24b/envrcctl-0.0.3.tar.gz"
-  sha256 "f55b49be417ea0ccbb87ed0fb20b03c63ca0e2667ff8a5d111f06fbc3cdc0de0"
+  url "https://files.pythonhosted.org/packages/source/e/envrcctl/envrcctl-0.1.0.tar.gz"
+  sha256 "04551ead93b8de3d0c121e09e246d82d7f6dfac88045b7a775d9143bd37914b3"
   license "MIT"
 
-
   depends_on "python@3.14"
+  depends_on :xcode => ["15.0", :build]
 
   resource "typer" do
     url "https://files.pythonhosted.org/packages/f5/24/cb09efec5cc954f7f9b930bf8279447d24618bb6758d4f6adf2574c41780/typer-0.24.1.tar.gz"
@@ -52,9 +52,25 @@ class Envrcctl < Formula
 
   def install
     virtualenv_install_with_resources
+
+    helper_output = libexec/"envrcctl-macos-auth"
+    system "sh", "scripts/build_macos_auth_helper.sh",
+           "scripts/macos/envrcctl-macos-auth.swift",
+           helper_output.to_s
+
+    env_wrapper = libexec/"bin"
+    env_wrapper.mkpath
+
+    (env_wrapper/"envrcctl").write_env_script(
+      libexec/"bin/envrcctl",
+      ENVRCCTL_MACOS_AUTH_HELPER: helper_output,
+    )
+
+    bin.install env_wrapper/"envrcctl"
   end
 
   test do
     system "#{bin}/envrcctl", "--help"
+    assert_match "envrcctl-macos-auth", shell_output("#{bin}/envrcctl doctor 2>&1", 1)
   end
 end

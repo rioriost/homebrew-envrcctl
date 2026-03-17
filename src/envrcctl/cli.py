@@ -12,6 +12,7 @@ from typing import Callable
 
 import typer
 
+from .auth import ensure_device_owner_auth
 from .command_runner import run_command
 from .envrc import (
     ENVRC_FILENAME,
@@ -66,6 +67,13 @@ def _run(action: Callable[[], None]) -> None:
 
 def _is_interactive() -> bool:
     return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _require_secret_access_auth(reason: str) -> str | None:
+    if sys.platform != "darwin":
+        return None
+    ensure_device_owner_auth(reason)
+    return reason
 
 
 def _mask_secret(value: str) -> str:
@@ -332,15 +340,25 @@ def secret_get(
             raise EnvrcctlError(f"{var} has no secret reference.")
         parsed = parse_ref(ref)
         backend = backend_for_ref(parsed)
-        value = backend.get(parsed)
 
         if not _is_interactive():
             if not force_plain:
                 raise EnvrcctlError(
                     "secret get is blocked in non-interactive environments. Use --force-plain to override."
                 )
+            if sys.platform == "darwin":
+                raise EnvrcctlError(
+                    "secret get on macOS requires an interactive shell and device owner authentication."
+                )
+            value = backend.get(parsed)
             typer.echo(value)
             return
+
+        auth_reason = _require_secret_access_auth(f"Access secret {var} with envrcctl")
+        if sys.platform == "darwin":
+            value = backend.get_with_auth(parsed, auth_reason)
+        else:
+            value = backend.get(parsed)
 
         if plain or show:
             typer.echo(value)
@@ -366,6 +384,11 @@ def inject(
             raise EnvrcctlError(
                 "inject is blocked in non-interactive environments. Use --force to override."
             )
+        if sys.platform == "darwin" and not _is_interactive():
+            raise EnvrcctlError(
+                "inject on macOS requires an interactive shell and device owner authentication."
+            )
+        auth_reason = _require_secret_access_auth("Inject secrets with envrcctl")
         doc = load_envrc(_envrc_path())
         block = ensure_managed_block(doc)
         for key in sorted(block.secret_refs.keys()):
@@ -373,7 +396,10 @@ def inject(
             if ref.kind != "runtime":
                 continue
             backend = backend_for_ref(ref)
-            value = backend.get(ref)
+            if sys.platform == "darwin":
+                value = backend.get_with_auth(ref, auth_reason)
+            else:
+                value = backend.get(ref)
             typer.echo(f"export {key}={shlex.quote(value)}")
 
     _run(action)
@@ -397,6 +423,13 @@ def exec_cmd(
     def action() -> None:
         if not ctx.args:
             raise EnvrcctlError("No command provided. Use -- to separate the command.")
+        if not _is_interactive():
+            if sys.platform == "darwin":
+                raise EnvrcctlError(
+                    "exec on macOS requires an interactive shell and device owner authentication."
+                )
+            raise EnvrcctlError("exec is blocked in non-interactive environments.")
+        auth_reason = _require_secret_access_auth("Execute command with envrcctl")
         doc = load_envrc(_envrc_path())
         block = ensure_managed_block(doc)
 
@@ -424,7 +457,10 @@ def exec_cmd(
                     )
                 continue
             backend = backend_for_ref(ref)
-            env[name] = backend.get(ref)
+            if sys.platform == "darwin":
+                env[name] = backend.get_with_auth(ref, auth_reason)
+            else:
+                env[name] = backend.get(ref)
 
         result = subprocess.run(list(ctx.args), env=env)
         if result.returncode != 0:

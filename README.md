@@ -11,10 +11,10 @@ It is designed for macOS first, with Linux support via SecretService.
 - Non-secret environment variables (CRUD)
 - Secrets stored in Keychain (macOS) or SecretService (Linux)
 - Inheritance control (`source_up` on/off)
-- Exec-based secret injection (`envrcctl exec -- ...`)
-- Secret injection for direnv (`eval "$(envrcctl inject)"`, TTY-guarded)
+- Exec-based secret injection (`envrcctl exec -- ...`, TTY-guarded on Linux, TTY + macOS auth on macOS)
+- Secret injection for direnv (`eval "$(envrcctl inject)"`, TTY-guarded on Linux, TTY + macOS auth on macOS)
 - Secret kinds (runtime/admin), with exec injecting runtime only
-- Secret get with clipboard default and TTY guard
+- Secret get with clipboard default and TTY guard on Linux, plus macOS auth on macOS
 - Diagnostics and migration helpers
 - Shell completion scripts
 
@@ -62,6 +62,45 @@ git clone <REPO_URL>
 cd envrcctl
 uv sync
 uv run python -m envrcctl.main --help
+```
+
+### Build the macOS auth helper (macOS only)
+
+The macOS device owner authentication flow requires a native helper named
+`envrcctl-macos-auth`.
+
+Build it and place the binary at either:
+
+- `src/envrcctl/envrcctl-macos-auth`
+- or a custom path set via `ENVRCCTL_MACOS_AUTH_HELPER`
+
+Example build flow:
+
+```sh
+swiftc -O -framework LocalAuthentication -framework Security \
+  scripts/macos/envrcctl-macos-auth.swift \
+  -o src/envrcctl/envrcctl-macos-auth
+chmod +x src/envrcctl/envrcctl-macos-auth
+```
+
+You can also use the repository build script:
+
+```sh
+sh scripts/build_macos_auth_helper.sh
+```
+
+If you want to write the helper to a custom location, pass the source and output paths explicitly:
+
+```sh
+sh scripts/build_macos_auth_helper.sh \
+  scripts/macos/envrcctl-macos-auth.swift \
+  /usr/local/bin/envrcctl-macos-auth
+```
+
+If you install the helper elsewhere, set:
+
+```sh
+export ENVRCCTL_MACOS_AUTH_HELPER=/path/to/envrcctl-macos-auth
 ```
 
 ## Quick Start
@@ -130,6 +169,13 @@ envrcctl secret get OPENAI_API_KEY
 envrcctl secret get OPENAI_API_KEY --plain
 ```
 
+`envrcctl secret get` behavior is platform-specific:
+
+- On Linux, the current TTY-based behavior remains in place.
+- On macOS, `secret get` requires the existing interactive-shell check and successful macOS device owner authentication before revealing or copying the secret.
+
+In practice, macOS authentication may use Touch ID and, when supported by your system configuration, Apple Watch approval or password fallback.
+
 For CI-safe input:
 
 ```sh
@@ -145,13 +191,30 @@ envrcctl exec -k OPENAI_API_KEY -- python script.py
 
 Exec injects runtime secrets only.
 
+`envrcctl exec` behavior is platform-specific:
+
+- On Linux, the current behavior remains in place.
+- On macOS, `exec` requires the existing interactive-shell check and successful macOS device owner authentication before runtime secrets are injected into the child process.
+
+In practice, macOS authentication may use Touch ID and, when supported by your system configuration, Apple Watch approval or password fallback.
+
 ### Inject secrets for direnv
 
 ```sh
 envrcctl inject
 ```
 
-Non-interactive runs are blocked unless `--force` is provided.
+Linux keeps the current behavior: non-interactive runs are blocked unless `--force` is provided.
+
+On macOS, `envrcctl inject` requires both:
+- the existing interactive-shell check
+- successful macOS device owner authentication
+
+That authentication is expected to be satisfied through macOS mechanisms such as Touch ID and, when your system offers it, Apple Watch approval or password fallback.
+
+If the native helper is missing or not executable, `inject` fails closed with an
+authentication-helper error. Build or install `envrcctl-macos-auth` before using
+macOS-authenticated secret commands.
 
 ### Effective view (masked)
 
@@ -223,8 +286,16 @@ uv run python scripts/generate_completions.py
 - Secrets are never written to `.envrc`
 - Secrets are never passed in CLI arguments
 - `.envrc` updates are atomic
-- `inject` is blocked in non-interactive environments unless `--force` is provided
-- `secret get` is clipboard-only by default; plaintext output is TTY-guarded
+- On Linux, `inject` is blocked in non-interactive environments unless `--force` is provided
+- On macOS, `inject` requires both the interactive-shell check and successful device owner authentication
+- On Linux, `secret get` is clipboard-only by default and plaintext output is TTY-guarded
+- On macOS, `secret get` requires both the interactive-shell check and successful device owner authentication
+- On Linux, `exec` keeps the current behavior
+- On macOS, `exec` requires both the interactive-shell check and successful device owner authentication before runtime secrets are injected into the child process
+- On macOS, authentication is mediated by the OS and may use Touch ID, Apple Watch approval, or password fallback depending on system support and configuration
+- On macOS, authenticated commands require the native helper `envrcctl-macos-auth`
+- The helper is discovered from `ENVRCCTL_MACOS_AUTH_HELPER` or `src/envrcctl/envrcctl-macos-auth`
+- If the helper is missing, invalid, or not executable, macOS secret-accessing commands fail closed
 - The tool refuses to write to world-writable `.envrc`
 
 ## Development

@@ -88,28 +88,27 @@ wheels = [
 
 [[package]]
 name = "envrcctl"
-version = "0.0.3"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "typer" },
 ]
 
-[package.dev-dependencies]
-dev = [
+[package.optional-dependencies]
+test = [
     { name = "bandit" },
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "typer", specifier = ">=0.24.1" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bandit", specifier = ">=1.7.10" },
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
+requires-dist = [
+    { name = "bandit", marker = "extra == 'test'", specifier = ">=1.7.10" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.2" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.0.0" },
+    { name = "typer", specifier = ">=0.24.1" },
 ]
+provides-extras = ["test"]
 
 [[package]]
 name = "iniconfig"

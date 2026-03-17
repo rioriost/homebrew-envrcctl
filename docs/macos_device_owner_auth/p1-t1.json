@@ -1,0 +1,64 @@
+{
+  "id": "p1-t1",
+  "phase": "phase-1",
+  "title": "Define authenticated reveal CLI contract",
+  "status": "planned",
+  "summary": "Define the Phase 1 CLI contract for macOS device-owner-authenticated secret reveal, including command shape, compatibility behavior, and failure semantics.",
+  "inputs": [
+    "docs/macos_device_owner_auth_plan.md",
+    "Current secret CLI behavior in src/envrcctl/cli.py",
+    "Current Keychain backend behavior in src/envrcctl/keychain.py",
+    "Current secret backend abstraction in src/envrcctl/secrets.py"
+  ],
+  "outputs": [
+    "Documented CLI contract for `secret reveal`",
+    "Decision on `secret get` compatibility and deprecation behavior",
+    "Enumerated user-facing failure messages and exit conditions",
+    "Implementation-ready acceptance criteria for Phase 1 CLI behavior"
+  ],
+  "dependencies": [],
+  "acceptance_criteria": [
+    "A dedicated plaintext reveal command is defined as `envrcctl secret reveal VAR`.",
+    "`secret reveal` is specified as macOS-only and requires successful OS-mediated device owner authentication before plaintext output.",
+    "The contract explicitly states that authentication uses macOS device owner authentication semantics rather than TTY heuristics.",
+    "A clear decision is recorded for the short-term handling of `secret get --plain`, `--show`, and `--force-plain`.",
+    "If legacy plaintext flags remain temporarily, they must route through the same authenticated reveal path on macOS.",
+    "Failure cases are enumerated for unsupported platform, authentication unavailable, authentication cancelled, helper missing, and secret not found.",
+    "Failure behavior is fail-closed: no fallback path may print plaintext without successful authentication.",
+    "The contract distinguishes non-plaintext retrieval UX from plaintext reveal UX.",
+    "The task output is sufficient for the next implementation ticket to add the native helper without re-deciding CLI semantics."
+  ],
+  "notes": [
+    "Prefer introducing `secret reveal` as the canonical plaintext output path.",
+    "Prefer deprecating `secret get --plain`, `--show`, and `--force-plain` rather than expanding them.",
+    "Do not promise Apple Watch specifically; document that macOS may offer Apple Watch approval through device owner authentication depending on system configuration.",
+    "Do not rely on AI-agent detection, parent-process heuristics, or `sudo` as the security boundary."
+  ],
+  "implementation_outline": [
+    "Review current `secret get` behavior and identify all plaintext output paths.",
+    "Define the final user-facing command grammar and help text for `secret reveal`.",
+    "Define whether `secret get` remains clipboard/masked only by default.",
+    "Specify compatibility behavior for legacy flags during transition.",
+    "Write concise, sanitized error messages and expected non-zero outcomes.",
+    "Record the final CLI contract in the docs set for subsequent implementation tasks."
+  ],
+  "verification": {
+    "checks": [
+      "The documented contract contains no plaintext path that bypasses device owner authentication on macOS.",
+      "The contract is internally consistent with the architecture in docs/macos_device_owner_auth_plan.md.",
+      "The contract is specific enough for implementation without revisiting basic UX decisions."
+    ],
+    "manual_review_required": true
+  },
+  "risks": [
+    "Leaving legacy flags ambiguous could preserve unsafe behavior.",
+    "Over-promising specific authentication factors could create support issues across macOS configurations.",
+    "Mixing clipboard UX and plaintext reveal semantics could weaken the security model."
+  ],
+  "non_goals": [
+    "Implementing the Swift helper",
+    "Changing Linux behavior",
+    "Migrating Keychain items to item-level access control",
+    "Hardening inject/exec flows in this ticket"
+  ]
+}

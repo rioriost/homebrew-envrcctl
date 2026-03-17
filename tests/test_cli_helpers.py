@@ -126,3 +126,45 @@ def test_write_envrc_raises_when_world_writable_after_write(
 
     with pytest.raises(EnvrcctlError):
         cli._write_envrc(doc, block)
+
+
+def test_require_secret_access_auth_is_noop_on_linux(monkeypatch) -> None:
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    called = {"ok": False}
+
+    def fake_auth(reason: str) -> None:
+        called["ok"] = True
+
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", fake_auth)
+
+    result = cli._require_secret_access_auth("secret get")
+    assert result is None
+    assert called["ok"] is False
+
+
+def test_require_secret_access_auth_calls_authenticator_on_macos(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    calls: list[str] = []
+
+    def fake_auth(reason: str) -> None:
+        calls.append(reason)
+
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", fake_auth)
+
+    result = cli._require_secret_access_auth("secret get")
+    assert result == "secret get"
+    assert calls == ["secret get"]
+
+
+def test_require_secret_access_auth_propagates_error(monkeypatch) -> None:
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+
+    def fake_auth(reason: str) -> None:
+        raise EnvrcctlError("Authentication cancelled.")
+
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", fake_auth)
+
+    with pytest.raises(EnvrcctlError, match="Authentication cancelled."):
+        cli._require_secret_access_auth("inject")

@@ -1,0 +1,378 @@
+{
+  "project": "envrcctl",
+  "source": "docs/macos_device_owner_auth/plan.md",
+  "status_values": [
+    "planned",
+    "in-progress",
+    "checking",
+    "verified",
+    "committed",
+    "done",
+    "blocked"
+  ],
+  "phases": [
+    {
+      "id": "phase-1",
+      "name": "Phase 1 — CLI contract and security policy",
+      "goal": "Define macOS-specific authentication requirements for `secret get` and `inject` while preserving current interactive-only behavior on Linux.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p1-t1",
+          "title": "Finalize command contract for macOS-authenticated secret get and inject",
+          "status": "planned",
+          "inputs": [
+            "docs/macos_device_owner_auth/plan.md",
+            "Current `secret get` behavior in `src/envrcctl/cli.py`",
+            "Current `inject` behavior in `src/envrcctl/cli.py`",
+            "Current `_is_interactive()` gate behavior"
+          ],
+          "outputs": [
+            "Final command contract for `secret get` on macOS and Linux",
+            "Final command contract for `inject` on macOS and Linux",
+            "Documented rule that macOS requires both `_is_interactive()` and device owner authentication",
+            "Documented rule that Linux keeps `_is_interactive()`-only behavior"
+          ],
+          "deps": []
+        },
+        {
+          "id": "p1-t2",
+          "title": "Define authentication and failure UX for secret get and inject",
+          "status": "planned",
+          "inputs": [
+            "Finalized command contract",
+            "macOS authentication failure cases",
+            "Current EnvrcctlError messaging style"
+          ],
+          "outputs": [
+            "Failure message matrix for unsupported platform, auth unavailable, auth cancelled, helper missing, and Keychain access failure",
+            "User-facing guidance for `secret get` auth failures",
+            "User-facing guidance for `inject` auth failures"
+          ],
+          "deps": ["p1-t1"]
+        },
+        {
+          "id": "p1-t3",
+          "title": "Document phase 1 decisions and acceptance criteria",
+          "status": "planned",
+          "inputs": [
+            "Command contract decisions",
+            "Authentication failure UX decisions",
+            "macOS/Linux behavior split"
+          ],
+          "outputs": [
+            "Documented phase summary",
+            "Acceptance checklist for macOS auth on `secret get` and `inject`",
+            "Implementation handoff notes"
+          ],
+          "deps": ["p1-t1", "p1-t2"]
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "Phase 2 — Native helper implementation",
+      "goal": "Implement a small Swift helper that performs macOS device owner authentication and authenticated Keychain reads for `secret get` and `inject`.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p2-t1",
+          "title": "Establish Swift helper layout and build approach",
+          "status": "planned",
+          "inputs": [
+            "Repository packaging constraints",
+            "Plan packaging notes",
+            "macOS-only helper scope"
+          ],
+          "outputs": [
+            "Chosen source location for helper",
+            "Build instructions for local development",
+            "Expected runtime path contract for Python integration"
+          ],
+          "deps": []
+        },
+        {
+          "id": "p2-t2",
+          "title": "Implement LocalAuthentication device owner auth flow",
+          "status": "planned",
+          "inputs": [
+            "Swift helper layout",
+            "Requirement to use `.deviceOwnerAuthentication`",
+            "User-facing localized reason text"
+          ],
+          "outputs": [
+            "Swift authentication flow using `LAContext`",
+            "Authentication availability checks",
+            "Authentication cancel and failure handling"
+          ],
+          "deps": ["p2-t1"]
+        },
+        {
+          "id": "p2-t3",
+          "title": "Implement authenticated Keychain read flow in helper",
+          "status": "planned",
+          "inputs": [
+            "Swift auth flow",
+            "Current Keychain service/account reference model",
+            "Requirement to avoid secret leakage in errors"
+          ],
+          "outputs": [
+            "Swift Keychain query using Security framework",
+            "Authentication-context-aware secret retrieval",
+            "Sanitized stdout/stderr contract"
+          ],
+          "deps": ["p2-t2"]
+        },
+        {
+          "id": "p2-t4",
+          "title": "Define helper exit codes and invocation contract",
+          "status": "planned",
+          "inputs": [
+            "Helper auth behavior",
+            "Helper Keychain read behavior",
+            "Python-side integration needs"
+          ],
+          "outputs": [
+            "Documented exit code mapping",
+            "Stable CLI arguments for helper",
+            "Invocation examples for integration and testing"
+          ],
+          "deps": ["p2-t3"]
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Phase 3 — Python backend and CLI integration",
+      "goal": "Integrate the native helper into the macOS backend so that `secret get` and `inject` require both `_is_interactive()` and device owner authentication on macOS, while Linux remains `_is_interactive()`-only.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p3-t1",
+          "title": "Add authenticated retrieval path to macOS backend",
+          "status": "planned",
+          "inputs": [
+            "Helper invocation contract",
+            "Current `KeychainBackend` implementation",
+            "Secret backend abstraction"
+          ],
+          "outputs": [
+            "Backend helper invocation wrapper",
+            "Authenticated retrieval method for macOS secret access",
+            "Sanitized error mapping into `EnvrcctlError`"
+          ],
+          "deps": ["p2-t4"]
+        },
+        {
+          "id": "p3-t2",
+          "title": "Update secret get to require interactive shell and macOS auth",
+          "status": "planned",
+          "inputs": [
+            "Authenticated backend retrieval path",
+            "Current `secret get` command structure",
+            "Phase 1 command contract"
+          ],
+          "outputs": [
+            "Updated `secret get` behavior on macOS",
+            "macOS enforcement of `_is_interactive()` plus device owner authentication",
+            "Preserved Linux `_is_interactive()`-only behavior"
+          ],
+          "deps": ["p1-t1", "p3-t1"]
+        },
+        {
+          "id": "p3-t3",
+          "title": "Update inject to require interactive shell and macOS auth",
+          "status": "planned",
+          "inputs": [
+            "Authenticated backend retrieval path",
+            "Current `inject` command structure",
+            "Phase 1 command contract"
+          ],
+          "outputs": [
+            "Updated `inject` behavior on macOS",
+            "macOS enforcement of `_is_interactive()` plus device owner authentication",
+            "Preserved Linux `_is_interactive()` plus `--force` behavior"
+          ],
+          "deps": ["p1-t1", "p3-t1"]
+        },
+        {
+          "id": "p3-t4",
+          "title": "Preserve fail-closed behavior for unsupported auth states",
+          "status": "planned",
+          "inputs": [
+            "Failure UX matrix",
+            "Backend integration changes",
+            "Platform detection behavior"
+          ],
+          "outputs": [
+            "Unsupported platform error handling",
+            "Missing helper failure handling",
+            "Fail-closed behavior for auth cancellation and auth-unavailable states"
+          ],
+          "deps": ["p1-t2", "p3-t1", "p3-t2", "p3-t3"]
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Phase 4 — Tests",
+      "goal": "Cover the new authenticated `secret get` and `inject` flow with unit, mocked integration, and manual macOS verification checks.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p4-t1",
+          "title": "Add CLI tests for secret get authentication behavior",
+          "status": "planned",
+          "inputs": [
+            "Updated `secret get` behavior",
+            "Failure UX matrix",
+            "Platform-specific behavior requirements"
+          ],
+          "outputs": [
+            "CLI tests for interactive vs non-interactive behavior",
+            "CLI tests for macOS auth-required behavior",
+            "CLI tests for Linux interactive-only behavior"
+          ],
+          "deps": ["p3-t2", "p3-t4"]
+        },
+        {
+          "id": "p4-t2",
+          "title": "Add CLI tests for inject authentication behavior",
+          "status": "planned",
+          "inputs": [
+            "Updated `inject` behavior",
+            "Failure UX matrix",
+            "Platform-specific behavior requirements"
+          ],
+          "outputs": [
+            "CLI tests for interactive vs non-interactive behavior",
+            "CLI tests for macOS auth-required behavior",
+            "CLI tests for Linux `--force` behavior"
+          ],
+          "deps": ["p3-t3", "p3-t4"]
+        },
+        {
+          "id": "p4-t3",
+          "title": "Add backend tests for helper invocation and error mapping",
+          "status": "planned",
+          "inputs": [
+            "Backend helper invocation wrapper",
+            "Helper exit code contract",
+            "EnvrcctlError mapping rules"
+          ],
+          "outputs": [
+            "Unit tests for helper command construction",
+            "Tests for stdout/stderr handling",
+            "Tests for non-zero exit code mapping"
+          ],
+          "deps": ["p2-t4", "p3-t1"]
+        },
+        {
+          "id": "p4-t4",
+          "title": "Add mocked integration coverage for authenticated outcomes",
+          "status": "planned",
+          "inputs": [
+            "CLI and backend test scaffolding",
+            "Success and failure cases for helper integration"
+          ],
+          "outputs": [
+            "Mocked success-path tests",
+            "Mocked auth-cancel tests",
+            "Mocked helper-missing tests",
+            "Mocked auth-unavailable tests"
+          ],
+          "deps": ["p4-t1", "p4-t2", "p4-t3"]
+        },
+        {
+          "id": "p4-t5",
+          "title": "Create manual macOS verification checklist",
+          "status": "planned",
+          "inputs": [
+            "Authenticated `secret get` implementation",
+            "Authenticated `inject` implementation",
+            "Supported authentication methods"
+          ],
+          "outputs": [
+            "Manual checklist for Touch ID verification",
+            "Manual checklist for auth cancel and unavailable flows",
+            "Manual checklist for Apple Watch-assisted approval where offered by macOS"
+          ],
+          "deps": ["p3-t2", "p3-t3", "p3-t4"]
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Phase 5 — Documentation and rollout",
+      "goal": "Document macOS authentication requirements for `secret get` and `inject`, while clarifying Linux remains `_is_interactive()`-guarded.",
+      "status": "planned",
+      "tasks": [
+        {
+          "id": "p5-t1",
+          "title": "Update README for macOS-authenticated secret get and inject",
+          "status": "planned",
+          "inputs": [
+            "Final CLI behavior",
+            "macOS authentication model",
+            "Current `README.md` and `README.jp.md`"
+          ],
+          "outputs": [
+            "Updated README sections for `secret get` behavior",
+            "Updated README sections for `inject` behavior",
+            "Platform notes for macOS Touch ID / Apple Watch and Linux interactive-only behavior"
+          ],
+          "deps": ["p3-t2", "p3-t3", "p3-t4"]
+        },
+        {
+          "id": "p5-t2",
+          "title": "Add troubleshooting guidance for auth and helper issues",
+          "status": "planned",
+          "inputs": [
+            "Failure UX matrix",
+            "Manual verification checklist",
+            "Helper packaging/build decisions"
+          ],
+          "outputs": [
+            "Troubleshooting section for missing helper and auth prompt issues",
+            "Guidance for Touch ID unavailable cases",
+            "Guidance for Apple Watch not being offered by macOS",
+            "Guidance for Linux interactive-only restrictions"
+          ],
+          "deps": ["p1-t2", "p2-t1", "p4-t5"]
+        },
+        {
+          "id": "p5-t3",
+          "title": "Document rollout and migration notes",
+          "status": "planned",
+          "inputs": [
+            "Final behavior changes for `secret get` and `inject`",
+            "Platform split between macOS and Linux",
+            "Release sequencing decisions"
+          ],
+          "outputs": [
+            "Migration note for existing users",
+            "Release notes describing the macOS auth requirement",
+            "Behavior summary for unchanged Linux `_is_interactive()` gating"
+          ],
+          "deps": ["p3-t2", "p3-t3"]
+        },
+        {
+          "id": "p5-t4",
+          "title": "Document packaging and release considerations for the Swift helper",
+          "status": "planned",
+          "inputs": [
+            "Chosen helper build approach",
+            "Repository packaging constraints",
+            "macOS distribution requirements"
+          ],
+          "outputs": [
+            "Packaging notes for development and release",
+            "Expected helper installation/runtime path documentation",
+            "Future signing/notarization follow-up notes"
+          ],
+          "deps": ["p2-t1", "p2-t4"]
+        }
+      ]
+    }
+  ]
+}

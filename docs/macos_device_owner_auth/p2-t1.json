@@ -1,0 +1,130 @@
+{
+  "id": "p2-t1",
+  "title": "Python backend integration for macOS device owner authentication",
+  "status": "planned",
+  "phase": "phase-2",
+  "goal": "Wire the macOS native authentication helper into the Python secret backend and CLI so plaintext secret reveal requires OS-level device owner authentication.",
+  "inputs": [
+    "docs/macos_device_owner_auth_plan.md",
+    "Existing Keychain backend in src/envrcctl/keychain.py",
+    "Existing secret CLI flows in src/envrcctl/cli.py",
+    "Secret backend abstraction in src/envrcctl/secrets.py",
+    "Phase 2 native helper contract and invocation interface"
+  ],
+  "outputs": [
+    "Python helper invocation path for authenticated Keychain reads",
+    "Backend API for authenticated secret reveal",
+    "CLI integration for macOS-only authenticated reveal",
+    "Deprecation-compatible handling for legacy plaintext flags",
+    "Tests covering backend invocation and failure mapping"
+  ],
+  "acceptance_criteria": [
+    "`envrcctl secret reveal VAR` retrieves plaintext only after successful macOS device owner authentication",
+    "Plaintext reveal fails closed when authentication is unavailable, cancelled, or the helper is missing",
+    "Existing unauthenticated TTY-based plaintext output is removed or routed through the authenticated path on macOS",
+    "Errors do not include secret values",
+    "Unsupported platforms return a clear error for authenticated reveal",
+    "Automated tests cover success and failure paths for Python-side integration"
+  ],
+  "dependencies": [
+    "Phase 1 CLI contract finalized",
+    "Native macOS authentication helper implemented and runnable"
+  ],
+  "constraints": [
+    "macOS-specific reveal flow only",
+    "Do not rely on TTY/interactivity checks as the security boundary",
+    "Do not require sudo",
+    "Do not leak secrets via stdout/stderr except on successful explicit reveal",
+    "Preserve existing non-reveal backend behavior unless explicitly changed by the plan"
+  ],
+  "implementation_notes": [
+    "Add an explicit authenticated retrieval path rather than overloading generic get behavior invisibly",
+    "Validate helper path and invocation arguments before execution",
+    "Capture subprocess output safely and map native helper exit conditions to concise user-facing errors",
+    "Prefer `secret reveal` as the primary plaintext path; legacy `--plain`/`--show`/`--force-plain` should become authenticated aliases or be deprecated behind the same auth flow",
+    "Keep platform gating explicit and fail closed on non-macOS systems"
+  ],
+  "task_breakdown": [
+    {
+      "id": "p2-t1-1",
+      "title": "Define Python-side authenticated reveal interface",
+      "status": "planned",
+      "outputs": [
+        "Backend method or helper wrapper for authenticated retrieval",
+        "Clear separation between operational get and plaintext reveal get"
+      ]
+    },
+    {
+      "id": "p2-t1-2",
+      "title": "Implement helper invocation in macOS backend",
+      "status": "planned",
+      "outputs": [
+        "Subprocess invocation of native helper with service/account arguments",
+        "Sanitized stdout/stderr handling",
+        "Exit-code-to-error mapping"
+      ]
+    },
+    {
+      "id": "p2-t1-3",
+      "title": "Add CLI command for authenticated reveal",
+      "status": "planned",
+      "outputs": [
+        "`secret reveal` command",
+        "macOS-only backend path resolution",
+        "User-facing errors for unsupported platform or auth failure"
+      ]
+    },
+    {
+      "id": "p2-t1-4",
+      "title": "Migrate legacy plaintext flags onto authenticated flow",
+      "status": "planned",
+      "outputs": [
+        "Deprecated but safe handling for `--plain`, `--show`, and `--force-plain`",
+        "Guidance directing users to `secret reveal`"
+      ]
+    },
+    {
+      "id": "p2-t1-5",
+      "title": "Add Python-side tests",
+      "status": "planned",
+      "outputs": [
+        "Unit tests for backend invocation",
+        "CLI tests for reveal success/failure behavior",
+        "Coverage for helper-missing, auth-cancelled, and unsupported-platform cases"
+      ]
+    }
+  ],
+  "verification": {
+    "automated": [
+      "Run unit tests for backend and CLI reveal flows",
+      "Verify mocked helper success returns only the secret value",
+      "Verify mocked helper failures return sanitized error messages"
+    ],
+    "manual": [
+      "On macOS, confirm `secret reveal` triggers device owner authentication",
+      "Confirm cancellation does not print plaintext",
+      "Confirm legacy plaintext flags no longer bypass authentication"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Native helper output or failures may be surfaced unsafely",
+      "mitigation": "Centralize subprocess result handling and sanitize all error paths"
+    },
+    {
+      "risk": "Backward compatibility expectations around `secret get --plain`",
+      "mitigation": "Route legacy flags through the same authenticated flow and emit deprecation guidance"
+    },
+    {
+      "risk": "Non-macOS code paths regress while adding macOS-specific logic",
+      "mitigation": "Keep platform-specific behavior isolated in backend implementation and add explicit tests"
+    }
+  ],
+  "definition_of_done": [
+    "Python backend can invoke the macOS native helper for authenticated reveal",
+    "CLI exposes a safe authenticated plaintext reveal command",
+    "Legacy plaintext paths no longer bypass OS authentication on macOS",
+    "Tests pass for the new integration layer",
+    "Ticket status can move from checking to verified after acceptance criteria review"
+  ]
+}

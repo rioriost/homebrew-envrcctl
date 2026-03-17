@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 
 from envrcctl import cli
 from envrcctl.envrc import ENVRC_FILENAME
+from envrcctl.errors import EnvrcctlError
 from envrcctl.managed_block import ManagedBlock, render_managed_block
 
 
@@ -18,6 +19,9 @@ class DummyBackend:
 
     def get(self, ref) -> str:
         return self._store[(ref.service, ref.account)]
+
+    def get_with_auth(self, ref, reason: str | None = None) -> str:
+        return self.get(ref)
 
     def set(self, ref, value: str) -> None:
         self._store[(ref.service, ref.account)] = value
@@ -116,6 +120,8 @@ def test_cli_secret_set_inject_unset(tmp_path: Path, monkeypatch) -> None:
     assert "ENVRCCTL_SECRET_OPENAI_API_KEY" in envrc_text
     assert 'eval "$(envrcctl inject)"' in envrc_text
 
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+
     result = runner.invoke(cli.app, ["inject", "--force"])
     assert result.exit_code == 0
     assert "export OPENAI_API_KEY=secretvalue" in result.stdout
@@ -133,6 +139,8 @@ def test_cli_exec_injects_secrets_into_child(tmp_path: Path, monkeypatch) -> Non
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     runner.invoke(
@@ -146,6 +154,276 @@ def test_cli_exec_injects_secrets_into_child(tmp_path: Path, monkeypatch) -> Non
     assert result.exit_code == 0
 
 
+def test_cli_exec_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+    auth_calls: list[tuple[str, str, str | None]] = []
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        auth_calls.append((ref.service, ref.account, reason))
+        return dummy.get(ref)
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input="secretvalue",
+    )
+
+    script = "import os, sys; sys.exit(0 if os.getenv('TOKEN') == 'secretvalue' else 1)"
+    result = runner.invoke(cli.app, ["exec", "--", sys.executable, "-c", script])
+
+    assert result.exit_code == 0
+    assert auth_calls == [
+        (
+            "st.rio.envrcctl",
+            "acct",
+            "Execute command with envrcctl",
+        )
+    ]
+
+
+def test_cli_exec_on_macos_requires_interactive_shell(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: False)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["exec", "--", sys.executable, "-c", "print('x')"])
+
+    assert result.exit_code == 1
+    assert (
+        "exec on macOS requires an interactive shell and device owner authentication."
+        in result.stderr
+    )
+
+
+def test_cli_exec_on_macos_fails_closed_when_auth_is_cancelled(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        raise EnvrcctlError("Authentication cancelled.")
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["exec", "--", sys.executable, "-c", "print('x')"])
+
+    assert result.exit_code == 1
+    assert "Authentication cancelled." in result.stderr
+
+
+def test_cli_secret_get_on_macos_requires_auth_for_plain_output(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+    auth_calls: list[tuple[str, str, str | None]] = []
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        auth_calls.append((ref.service, ref.account, reason))
+        return dummy.get(ref)
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "OPENAI_API_KEY", "--account", "openai:prod", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["secret", "get", "OPENAI_API_KEY", "--plain"])
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "secretvalue"
+    assert auth_calls == [
+        (
+            "st.rio.envrcctl",
+            "openai:prod",
+            "Access secret OPENAI_API_KEY with envrcctl",
+        )
+    ]
+
+
+def test_cli_secret_get_on_macos_requires_auth_for_clipboard_default(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+    auth_calls: list[tuple[str, str, str | None]] = []
+    clipboard: list[str] = []
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        auth_calls.append((ref.service, ref.account, reason))
+        return dummy.get(ref)
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(
+        cli, "_copy_to_clipboard", lambda value: clipboard.append(value)
+    )
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "OPENAI_API_KEY", "--account", "openai:prod", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["secret", "get", "OPENAI_API_KEY"])
+    assert result.exit_code == 0
+    assert "Copied to clipboard" in result.stdout
+    assert clipboard == ["secretvalue"]
+    assert auth_calls == [
+        (
+            "st.rio.envrcctl",
+            "openai:prod",
+            "Access secret OPENAI_API_KEY with envrcctl",
+        )
+    ]
+
+
+def test_cli_secret_get_on_macos_fails_closed_when_auth_is_cancelled(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+    clipboard: list[str] = []
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        raise EnvrcctlError("Authentication cancelled.")
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(
+        cli, "_copy_to_clipboard", lambda value: clipboard.append(value)
+    )
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "OPENAI_API_KEY", "--account", "openai:prod", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["secret", "get", "OPENAI_API_KEY"])
+    assert result.exit_code == 1
+    assert "Authentication cancelled." in result.stderr
+    assert clipboard == []
+
+
+def test_cli_inject_on_macos_requires_auth(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+    auth_calls: list[tuple[str, str, str | None]] = []
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        auth_calls.append((ref.service, ref.account, reason))
+        return dummy.get(ref)
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["inject"])
+    assert result.exit_code == 0
+    assert "export TOKEN=secretvalue" in result.stdout
+    assert auth_calls == [("st.rio.envrcctl", "acct", "Inject secrets with envrcctl")]
+
+
+def test_cli_inject_on_macos_force_does_not_bypass_auth_failure(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    dummy = DummyBackend()
+
+    def fake_get_with_auth(ref, reason: str | None = None) -> str:
+        raise EnvrcctlError("Authentication unavailable.")
+
+    monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
+    monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(dummy, "get_with_auth", fake_get_with_auth)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
+    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
+
+    runner.invoke(cli.app, ["init"])
+    runner.invoke(
+        cli.app,
+        ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
+        input="secretvalue",
+    )
+
+    result = runner.invoke(cli.app, ["inject", "--force"])
+    assert result.exit_code == 1
+    assert "Authentication unavailable." in result.stderr
+
+
 def test_cli_exec_skips_admin_secrets(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -153,6 +431,8 @@ def test_cli_exec_skips_admin_secrets(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     runner.invoke(
@@ -182,6 +462,8 @@ def test_cli_exec_rejects_admin_when_selected(tmp_path: Path, monkeypatch) -> No
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     runner.invoke(
@@ -230,6 +512,8 @@ def test_cli_exec_requires_command(tmp_path: Path, monkeypatch) -> None:
 def test_cli_exec_missing_selected_secret(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     result = runner.invoke(
@@ -249,6 +533,8 @@ def test_cli_exec_includes_exports_and_selected_secrets(
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     runner.invoke(cli.app, ["set", "FOO", "bar"])
@@ -278,6 +564,8 @@ def test_cli_exec_includes_exports_and_selected_secrets(
 def test_cli_exec_propagates_exit_code(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+    monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
     result = runner.invoke(
@@ -364,6 +652,8 @@ def test_cli_inject_skips_admin_secrets(tmp_path: Path, monkeypatch) -> None:
         input="adminvalue",
     )
 
+    monkeypatch.setattr(cli.sys, "platform", "linux")
+
     result = runner.invoke(cli.app, ["inject", "--force"])
     assert result.exit_code == 0
     assert "RUNTIME_TOKEN=runtimevalue" in result.stdout
@@ -378,6 +668,7 @@ def test_cli_secret_get_copies_masked(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
     monkeypatch.setattr(
         cli, "_copy_to_clipboard", lambda value: copied.setdefault("value", value)
@@ -404,6 +695,7 @@ def test_cli_secret_get_plain_interactive(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(cli, "resolve_backend", lambda: ("kc", dummy))
     monkeypatch.setattr(cli, "backend_for_ref", lambda ref: dummy)
+    monkeypatch.setattr(cli, "ensure_device_owner_auth", lambda reason: None)
     monkeypatch.setattr(cli, "_is_interactive", lambda: True)
 
     runner.invoke(cli.app, ["init"])
@@ -434,6 +726,8 @@ def test_cli_secret_get_force_plain_non_interactive(
         ["secret", "set", "TOKEN", "--account", "acct", "--stdin"],
         input="supersecretvalue",
     )
+
+    monkeypatch.setattr(cli.sys, "platform", "linux")
 
     result = runner.invoke(cli.app, ["secret", "get", "TOKEN", "--force-plain"])
     assert result.exit_code == 0
@@ -471,6 +765,8 @@ def test_cli_outputs_do_not_leak_secret_except_inject(
         assert result.exit_code == 0
         assert secret not in result.stdout
         assert secret not in result.stderr
+
+    monkeypatch.setattr(cli.sys, "platform", "linux")
 
     result = runner.invoke(cli.app, ["inject", "--force"])
     assert result.exit_code == 0

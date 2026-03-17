@@ -13,6 +13,7 @@ fi
 has_python=0
 has_swift=0
 has_rust=0
+has_macos_auth_helper=0
 sh_files=()
 bicep_files=()
 
@@ -25,6 +26,10 @@ for entry in "${status_entries[@]}"; do
   case "$path" in
     *.py|pyproject.toml|requirements.txt) has_python=1 ;;
     *.swift|Package.swift) has_swift=1 ;;
+    native/envrcctl-macos-auth.swift|scripts/macos/envrcctl-macos-auth.swift|scripts/build_macos_auth_helper.sh)
+      has_macos_auth_helper=1
+      has_swift=1
+      ;;
     *.rs|Cargo.toml) has_rust=1 ;;
     *.sh) sh_files+=("$path") ;;
     *.bicep) bicep_files+=("$path") ;;
@@ -55,10 +60,25 @@ if (( has_python == 1 )); then
   fi
 fi
 
+if (( has_macos_auth_helper == 1 )); then
+  if have_cmd sh && have_cmd swiftc; then
+    echo "==> macOS auth helper: build"
+    ./scripts/build_macos_auth_helper.sh \
+      scripts/macos/envrcctl-macos-auth.swift \
+      src/envrcctl/envrcctl-macos-auth && ran=1 || exit 1
+  else
+    skip_cmd "macOS auth helper" "sh/swiftc"
+  fi
+fi
+
 if (( has_swift == 1 )); then
   if have_cmd swift; then
-    echo "==> swift: swift test"
-    swift test && ran=1 || exit 1
+    if [[ -f Package.swift ]]; then
+      echo "==> swift: swift test"
+      swift test && ran=1 || exit 1
+    else
+      echo "==> swift: no Package.swift; skipping swift test"
+    fi
   else
     skip_cmd "swift" "swift"
   fi

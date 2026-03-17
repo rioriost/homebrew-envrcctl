@@ -1,0 +1,91 @@
+{
+  "id": "p2-t2",
+  "title": "Add tests and verification plan for macOS device owner authentication",
+  "phase": "phase-2",
+  "status": "planned",
+  "summary": "Define and implement automated and manual verification coverage for the macOS authenticated secret reveal flow, including CLI behavior, Python backend integration, helper failure mapping, and host-level authentication checks.",
+  "user_intent": "Ensure the new macOS device owner authentication flow is covered by tests and has a reproducible verification procedure before rollout.",
+  "inputs": [
+    "docs/macos_device_owner_auth_plan.md",
+    "envrcctl/src/envrcctl/cli.py",
+    "envrcctl/src/envrcctl/keychain.py",
+    "envrcctl/src/envrcctl/secrets.py",
+    "existing test layout under tests/"
+  ],
+  "outputs": [
+    "Automated tests for authenticated reveal CLI behavior",
+    "Backend tests for helper invocation and error handling",
+    "Mocked integration tests for success and failure paths",
+    "Manual verification checklist for Touch ID / Apple Watch-capable macOS hosts",
+    "Updated verification notes in docs if required"
+  ],
+  "acceptance_criteria": [
+    "There are automated tests covering the authenticated plaintext reveal command path.",
+    "There are tests for unsupported platform handling and missing-helper failure behavior.",
+    "There are tests confirming authentication cancellation and helper execution failures do not fall back to plaintext output.",
+    "There are tests for legacy plaintext flags if they remain supported during migration.",
+    "A manual verification checklist exists for macOS host testing, including Touch ID success, cancel flow, unavailable-auth flow, and Apple Watch-assisted approval when the host supports it.",
+    "Verification guidance clearly distinguishes unit-testable behavior from host-only authentication behavior."
+  ],
+  "dependencies": [
+    "p1-t1",
+    "p1-t2"
+  ],
+  "implementation_notes": [
+    "Prefer unit tests around command routing and backend abstraction boundaries instead of trying to perform real biometric authentication in automated test runs.",
+    "Mock the native helper process boundary so stdout, stderr, exit codes, and missing executable behavior can be validated deterministically.",
+    "Assert that error messages are sanitized and never contain secret material.",
+    "Document host-only verification steps separately from automated tests to keep CI stable."
+  ],
+  "test_plan": {
+    "unit_tests": [
+      "secret reveal routes through the authenticated retrieval path on macOS",
+      "secret reveal fails closed on unsupported platforms",
+      "secret reveal fails when the secret ref is missing or invalid",
+      "legacy plaintext flags route through the authenticated path if still supported",
+      "no code path prints plaintext after auth cancellation or helper failure"
+    ],
+    "backend_tests": [
+      "helper command arguments are constructed correctly from service/account",
+      "successful helper stdout is returned as the secret value",
+      "non-zero helper exit codes are mapped to stable user-facing errors",
+      "missing helper executable is reported as a closed failure",
+      "stderr handling does not leak sensitive data"
+    ],
+    "integration_tests": [
+      "mocked successful authenticated reveal",
+      "mocked authentication cancelled response",
+      "mocked authentication unavailable response",
+      "mocked keychain item not found response"
+    ],
+    "manual_verification": [
+      "Touch ID success path on a supported Mac",
+      "authentication cancel path returns failure without plaintext output",
+      "authentication unavailable path returns a clear error",
+      "Apple Watch-assisted approval works when macOS offers it",
+      "unauthenticated TTY-based plaintext reveal is blocked"
+    ]
+  },
+  "risks": [
+    "Automated tests may overfit to helper error strings if the mapping contract is not defined clearly.",
+    "Host authentication behavior varies by hardware and macOS configuration, so manual verification must be explicit.",
+    "Legacy compatibility flags may create duplicate test surfaces during the migration period."
+  ],
+  "verification": {
+    "automated": [
+      "Run project test suite covering CLI and backend modules",
+      "Confirm new tests pass consistently in non-macOS and macOS CI where applicable"
+    ],
+    "manual": [
+      "Run authenticated reveal on a Touch ID-capable Mac",
+      "Repeat on a host configured for Apple Watch approval if available",
+      "Capture concise verification notes for success and failure cases"
+    ]
+  },
+  "definition_of_done": [
+    "Automated tests for authenticated reveal behavior are merged.",
+    "A manual macOS verification checklist is written and usable.",
+    "Failure modes are covered without leaking secret values.",
+    "The verification procedure is sufficient to support rollout of the authenticated reveal feature."
+  ]
+}

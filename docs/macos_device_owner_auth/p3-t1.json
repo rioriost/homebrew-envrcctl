@@ -1,0 +1,60 @@
+{
+  "id": "p3-t1",
+  "phase_id": "phase-3",
+  "title": "Phase 3 — Docs and rollout for macOS device owner authentication",
+  "status": "planned",
+  "summary": "Document the macOS-only device owner authentication model, update user-facing command guidance, and define rollout/migration steps for authenticated secret reveal.",
+  "inputs": [
+    "docs/macos_device_owner_auth_plan.md",
+    "Current CLI behavior for `secret get` and planned `secret reveal` flow",
+    "macOS authentication model using LocalAuthentication with `.deviceOwnerAuthentication`",
+    "Existing README and security-related docs under docs/"
+  ],
+  "outputs": [
+    "Updated user documentation for authenticated secret reveal",
+    "Rollout notes covering migration from plaintext flags to `secret reveal`",
+    "Troubleshooting guidance for Touch ID / Apple Watch / password fallback behavior",
+    "Manual verification checklist for macOS authentication UX"
+  ],
+  "acceptance_criteria": [
+    "Documentation clearly states that plaintext secret reveal on macOS requires device owner authentication.",
+    "Documentation distinguishes `secret get` from `secret reveal` and explains intended usage.",
+    "Docs state that Touch ID and Apple Watch behavior depends on macOS capabilities and user settings, not app-specific guarantees.",
+    "Migration guidance covers deprecation or compatibility behavior for `--plain`, `--show`, and `--force-plain`.",
+    "Troubleshooting guidance covers missing helper, unavailable authentication, cancelled authentication, and Keychain access failures.",
+    "Rollout notes explain the fail-closed behavior for unsupported platforms or missing authentication support."
+  ],
+  "dependencies": [
+    "p1-t1",
+    "p2-t1"
+  ],
+  "risks": [
+    "User confusion if `secret get` and `secret reveal` semantics are not documented precisely.",
+    "Over-promising Apple Watch-specific behavior when actual factor selection is controlled by macOS.",
+    "Documentation drift if implementation details change during backend integration."
+  ],
+  "notes": [
+    "Prefer wording that promises OS-mediated device owner authentication rather than a specific factor.",
+    "Keep security messaging explicit: discoverability of commands does not bypass OS authentication.",
+    "Document macOS-only scope clearly."
+  ],
+  "implementation_steps": [
+    "Update README and relevant docs to describe authenticated reveal flow.",
+    "Add a command behavior section for `secret get` vs `secret reveal`.",
+    "Write migration notes for legacy plaintext flags.",
+    "Add troubleshooting and manual verification checklist.",
+    "Add rollout notes describing platform limits and fail-closed behavior."
+  ],
+  "verification": {
+    "checks": [
+      "Docs reference the correct command names and expected behavior.",
+      "Acceptance criteria from the plan are reflected in user-facing documentation.",
+      "Security language is consistent with `.deviceOwnerAuthentication` semantics."
+    ],
+    "manual_steps": [
+      "Review docs against planned CLI contract.",
+      "Confirm no documentation claims app-level control over Apple Watch selection.",
+      "Confirm troubleshooting covers authentication cancel and unavailable cases."
+    ]
+  }
+}
