@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import os
+import json
 import subprocess
 from pathlib import Path
 from subprocess import CalledProcessError
@@ -140,10 +140,7 @@ def test_keychain_helper_path_defaults_next_to_module(monkeypatch) -> None:
     helper_path = backend._helper_path()
 
     assert helper_path.name == KeychainBackend.DEFAULT_HELPER_BASENAME
-    assert (
-        helper_path.parent == Path(backend.__module__.replace(".", "/")).parent
-        or helper_path.name
-    )
+    assert helper_path.name
 
 
 def test_keychain_build_auth_reason() -> None:
@@ -189,22 +186,110 @@ def test_keychain_get_with_auth_calls_helper(monkeypatch, tmp_path: Path) -> Non
     assert kwargs["input"] is None
 
 
-def test_keychain_get_with_auth_requires_existing_helper(
+def test_keychain_get_many_with_auth_calls_helper_once(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls = []
+
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    response = {
+        "items": [
+            {"service": "svc", "account": "acct1", "value": "secret1"},
+            {"service": "svc", "account": "acct2", "value": "secret2"},
+        ]
+    }
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return DummyResult(stdout=json.dumps(response))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [
+        SecretRef(scheme="kc", service="svc", account="acct1", kind="runtime"),
+        SecretRef(scheme="kc", service="svc", account="acct2", kind="runtime"),
+    ]
+
+    values = backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert values == {
+        ("svc", "acct1"): "secret1",
+        ("svc", "acct2"): "secret2",
+    }
+    assert len(calls) == 1
+
+    args, kwargs = calls[0]
+    assert args == [
+        str(helper_path),
+        "--input-json",
+        "-",
+        "--reason",
+        "Inject secrets with envrcctl",
+    ]
+    assert kwargs["input"] is not None
+
+    payload = json.loads(kwargs["input"])
+    assert payload == {
+        "items": [
+            {"service": "svc", "account": "acct1"},
+            {"service": "svc", "account": "acct2"},
+        ]
+    }
+
+
+def test_keychain_get_many_with_auth_uses_default_reason(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls = []
+
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return DummyResult(
+            stdout=json.dumps(
+                {"items": [{"service": "svc", "account": "acct", "value": "secret"}]}
+            )
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    values = backend.get_many_with_auth(refs)
+
+    assert values == {("svc", "acct"): "secret"}
+    args, _ = calls[0]
+    assert args[:3] == [str(helper_path), "--input-json", "-"]
+    assert args[3] == "--reason"
+    assert "acct" in args[4]
+
+
+def test_keychain_get_many_with_auth_requires_existing_helper(
     monkeypatch, tmp_path: Path
 ) -> None:
     helper_path = tmp_path / "missing-helper"
     monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
 
     backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
 
     with pytest.raises(EnvrcctlError) as exc:
-        backend.get_with_auth(ref, reason="Reveal secret for envrcctl")
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "helper" in str(exc.value).lower()
 
 
-def test_keychain_get_with_auth_requires_file_helper(
+def test_keychain_get_many_with_auth_requires_file_helper(
     monkeypatch, tmp_path: Path
 ) -> None:
     helper_dir = tmp_path / "helper-dir"
@@ -212,15 +297,15 @@ def test_keychain_get_with_auth_requires_file_helper(
     monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_dir))
 
     backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
 
     with pytest.raises(EnvrcctlError) as exc:
-        backend.get_with_auth(ref, reason="Reveal secret for envrcctl")
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "invalid" in str(exc.value).lower()
 
 
-def test_keychain_get_with_auth_requires_executable_helper(
+def test_keychain_get_many_with_auth_requires_executable_helper(
     monkeypatch, tmp_path: Path
 ) -> None:
     helper_path = tmp_path / "envrcctl-auth-helper"
@@ -229,42 +314,17 @@ def test_keychain_get_with_auth_requires_executable_helper(
     monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
 
     backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
 
     with pytest.raises(EnvrcctlError) as exc:
-        backend.get_with_auth(ref, reason="Reveal secret for envrcctl")
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "not executable" in str(exc.value).lower()
 
 
-def test_keychain_get_with_auth_prefers_default_reason(
+def test_keychain_get_many_with_auth_prefers_stderr(
     monkeypatch, tmp_path: Path
 ) -> None:
-    calls = []
-    helper_path = tmp_path / "envrcctl-auth-helper"
-    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
-    helper_path.chmod(0o755)
-
-    def fake_run(args, **kwargs):
-        calls.append((args, kwargs))
-        return DummyResult(stdout="secret\n")
-
-    monkeypatch.setattr(subprocess, "run", fake_run)
-    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
-
-    backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
-
-    value = backend.get_with_auth(ref)
-
-    assert value == "secret"
-    args, _ = calls[0]
-    assert args[:5] == [str(helper_path), "--service", "svc", "--account", "acct"]
-    assert "--reason" in args
-    assert "acct" in args[-1]
-
-
-def test_keychain_get_with_auth_prefers_stderr(monkeypatch, tmp_path: Path) -> None:
     helper_path = tmp_path / "envrcctl-auth-helper"
     helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
     helper_path.chmod(0o755)
@@ -276,15 +336,15 @@ def test_keychain_get_with_auth_prefers_stderr(monkeypatch, tmp_path: Path) -> N
     monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
 
     backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
 
     with pytest.raises(EnvrcctlError) as exc:
-        backend.get_with_auth(ref, reason="Reveal secret for envrcctl")
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "auth failed" in str(exc.value)
 
 
-def test_keychain_get_with_auth_falls_back_to_stdout(
+def test_keychain_get_many_with_auth_falls_back_to_stdout(
     monkeypatch, tmp_path: Path
 ) -> None:
     helper_path = tmp_path / "envrcctl-auth-helper"
@@ -298,12 +358,89 @@ def test_keychain_get_with_auth_falls_back_to_stdout(
     monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
 
     backend = KeychainBackend()
-    ref = SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
 
     with pytest.raises(EnvrcctlError) as exc:
-        backend.get_with_auth(ref, reason="Reveal secret for envrcctl")
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
 
     assert "auth cancelled" in str(exc.value)
+
+
+def test_keychain_get_many_with_auth_rejects_invalid_json(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(stdout="not-json")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "json" in str(exc.value).lower()
+
+
+def test_keychain_get_many_with_auth_rejects_missing_values(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(
+            stdout=json.dumps({"items": [{"service": "svc", "account": "acct"}]})
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "value" in str(exc.value).lower()
+
+
+def test_keychain_get_many_with_auth_rejects_duplicate_entries(
+    monkeypatch, tmp_path: Path
+) -> None:
+    helper_path = tmp_path / "envrcctl-auth-helper"
+    helper_path.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper_path.chmod(0o755)
+
+    def fake_run(args, **kwargs):
+        return DummyResult(
+            stdout=json.dumps(
+                {
+                    "items": [
+                        {"service": "svc", "account": "acct", "value": "secret1"},
+                        {"service": "svc", "account": "acct", "value": "secret2"},
+                    ]
+                }
+            )
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setenv(KeychainBackend.HELPER_ENV_VAR, str(helper_path))
+
+    backend = KeychainBackend()
+    refs = [SecretRef(scheme="kc", service="svc", account="acct", kind="runtime")]
+
+    with pytest.raises(EnvrcctlError) as exc:
+        backend.get_many_with_auth(refs, reason="Inject secrets with envrcctl")
+
+    assert "duplicate" in str(exc.value).lower()
 
 
 def test_keychain_list_returns_empty() -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import List
@@ -10,7 +11,7 @@ from .secrets import SecretBackend, SecretRef
 
 
 class KeychainBackend(SecretBackend):
-    """macOS Keychain backend using /usr/bin/security."""
+    """macOS Keychain backend using /usr/bin/security and a native auth helper."""
 
     HELPER_ENV_VAR = "ENVRCCTL_MACOS_AUTH_HELPER"
     DEFAULT_HELPER_BASENAME = "envrcctl-macos-auth"
@@ -21,14 +22,7 @@ class KeychainBackend(SecretBackend):
             return Path(configured).expanduser()
         return Path(__file__).resolve().parent / self.DEFAULT_HELPER_BASENAME
 
-    def _build_auth_reason(self, action: str, ref: SecretRef) -> str:
-        return (
-            f"envrcctl needs device owner authentication to {action} "
-            f"the secret for {ref.account}."
-        )
-
-    def get_with_auth(self, ref: SecretRef, reason: str | None = None) -> str:
-        helper_path = self._helper_path()
+    def _ensure_helper_ready(self, helper_path: Path) -> None:
         if not helper_path.exists():
             raise EnvrcctlError(
                 "macOS authentication helper not found. "
@@ -45,20 +39,110 @@ class KeychainBackend(SecretBackend):
                 "Fix permissions and retry."
             )
 
+    def _build_auth_reason(self, action: str, ref: SecretRef) -> str:
+        return (
+            f"envrcctl needs device owner authentication to {action} "
+            f"the secret for {ref.account}."
+        )
+
+    def _run_auth_helper(self, args: list[str], input_text: str | None = None) -> str:
+        helper_path = self._helper_path()
+        self._ensure_helper_ready(helper_path)
         result = run_command(
+            [str(helper_path), *args],
+            input_text=input_text,
+            allowed_commands={str(helper_path)},
+            error_message="Authenticated Keychain command failed.",
+        )
+        return result.rstrip("\n")
+
+    def get_with_auth(self, ref: SecretRef, reason: str | None = None) -> str:
+        return self._run_auth_helper(
             [
-                str(helper_path),
                 "--service",
                 ref.service,
                 "--account",
                 ref.account,
                 "--reason",
                 reason or self._build_auth_reason("access", ref),
-            ],
-            allowed_commands={str(helper_path)},
-            error_message="Authenticated Keychain command failed.",
+            ]
         )
-        return result.rstrip("\n")
+
+    def get_many_with_auth(
+        self,
+        refs: list[SecretRef],
+        reason: str | None = None,
+    ) -> dict[tuple[str, str], str]:
+        if not refs:
+            return {}
+
+        items = [{"service": ref.service, "account": ref.account} for ref in refs]
+        payload = json.dumps({"items": items})
+
+        output = self._run_auth_helper(
+            [
+                "--input-json",
+                "-",
+                "--reason",
+                reason
+                or (
+                    "envrcctl needs device owner authentication to access secrets for "
+                    + ", ".join(ref.account for ref in refs)
+                    + "."
+                ),
+            ],
+            input_text=payload,
+        )
+
+        try:
+            decoded = json.loads(output)
+        except json.JSONDecodeError as exc:
+            raise EnvrcctlError(
+                "Authenticated Keychain helper returned invalid JSON."
+            ) from exc
+
+        raw_items = decoded.get("items")
+        if not isinstance(raw_items, list):
+            raise EnvrcctlError(
+                "Authenticated Keychain helper returned an invalid response."
+            )
+
+        values: dict[tuple[str, str], str] = {}
+        for item in raw_items:
+            if not isinstance(item, dict):
+                raise EnvrcctlError(
+                    "Authenticated Keychain helper returned an invalid item."
+                )
+            service = item.get("service")
+            account = item.get("account")
+            value = item.get("value")
+            if not isinstance(service, str) or not isinstance(account, str):
+                raise EnvrcctlError(
+                    "Authenticated Keychain helper returned an invalid item payload."
+                )
+            if not isinstance(value, str):
+                raise EnvrcctlError(
+                    "Authenticated Keychain helper response is missing a value."
+                )
+            key = (service, account)
+            if key in values:
+                raise EnvrcctlError(
+                    "Authenticated Keychain helper returned duplicate secret entries."
+                )
+            values[key] = value
+
+        expected = {(ref.service, ref.account) for ref in refs}
+        missing = expected - set(values.keys())
+        if missing:
+            missing_list = ", ".join(
+                f"{service}/{account}" for service, account in sorted(missing)
+            )
+            raise EnvrcctlError(
+                "Authenticated Keychain helper response is missing secrets: "
+                f"{missing_list}"
+            )
+
+        return values
 
     def get(self, ref: SecretRef) -> str:
         result = run_command(
@@ -110,5 +194,5 @@ class KeychainBackend(SecretBackend):
         )
 
     def list(self, prefix: str | None = None) -> List[SecretRef]:
-        # Keychain listing is not required for Phase 1 use-cases.
+        # Keychain listing is not required for current use-cases.
         return []

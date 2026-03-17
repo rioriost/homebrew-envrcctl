@@ -25,10 +25,30 @@ enum HelperError: Error, LocalizedError {
     }
 }
 
+private struct SecretItem: Codable {
+    let service: String
+    let account: String
+}
+
+private struct BulkRequest: Codable {
+    let items: [SecretItem]
+}
+
+private struct SecretValueItem: Codable {
+    let service: String
+    let account: String
+    let value: String
+}
+
+private struct BulkResponse: Codable {
+    let items: [SecretValueItem]
+}
+
 struct Arguments {
     let authorizeOnly: Bool
     let service: String?
     let account: String?
+    let inputJSON: String?
     let reason: String
 }
 
@@ -47,6 +67,7 @@ private func parseArguments(_ argv: [String]) throws -> Arguments {
     var authorizeOnly = false
     var service: String?
     var account: String?
+    var inputJSON: String?
     var reason: String?
 
     var index = 1
@@ -68,6 +89,12 @@ private func parseArguments(_ argv: [String]) throws -> Arguments {
             }
             account = argv[index + 1]
             index += 2
+        case "--input-json":
+            guard index + 1 < argv.count else {
+                throw HelperError.invalidArguments("Missing value for --input-json.")
+            }
+            inputJSON = argv[index + 1]
+            index += 2
         case "--reason":
             guard index + 1 < argv.count else {
                 throw HelperError.invalidArguments("Missing value for --reason.")
@@ -79,11 +106,13 @@ private func parseArguments(_ argv: [String]) throws -> Arguments {
                 Usage:
                   envrcctl-macos-auth --authorize-only --reason <text>
                   envrcctl-macos-auth --service <service> --account <account> --reason <text>
+                  envrcctl-macos-auth --input-json <path> --reason <text>
 
                 Options:
                   --authorize-only   Require device owner authentication only.
                   --service          Keychain service name.
                   --account          Keychain account name.
+                  --input-json       JSON file containing multiple service/account items.
                   --reason           Localized reason shown in the auth prompt.
                   --help             Show this help.
                 """
@@ -99,30 +128,47 @@ private func parseArguments(_ argv: [String]) throws -> Arguments {
     }
 
     if authorizeOnly {
-        if service != nil || account != nil {
+        if service != nil || account != nil || inputJSON != nil {
             throw HelperError.invalidArguments(
-                "--authorize-only cannot be combined with --service or --account."
+                "--authorize-only cannot be combined with --service, --account, or --input-json."
             )
         }
-    } else {
-        guard let service, !service.isEmpty else {
-            throw HelperError.invalidArguments("--service is required.")
-        }
-        guard let account, !account.isEmpty else {
-            throw HelperError.invalidArguments("--account is required.")
-        }
         return Arguments(
-            authorizeOnly: false,
-            service: service,
-            account: account,
+            authorizeOnly: true,
+            service: nil,
+            account: nil,
+            inputJSON: nil,
             reason: reason
         )
     }
 
+    if inputJSON != nil {
+        if service != nil || account != nil {
+            throw HelperError.invalidArguments(
+                "--input-json cannot be combined with --service or --account."
+            )
+        }
+        return Arguments(
+            authorizeOnly: false,
+            service: nil,
+            account: nil,
+            inputJSON: inputJSON,
+            reason: reason
+        )
+    }
+
+    guard let service, !service.isEmpty else {
+        throw HelperError.invalidArguments("--service is required.")
+    }
+    guard let account, !account.isEmpty else {
+        throw HelperError.invalidArguments("--account is required.")
+    }
+
     return Arguments(
-        authorizeOnly: true,
-        service: nil,
-        account: nil,
+        authorizeOnly: false,
+        service: service,
+        account: account,
+        inputJSON: nil,
         reason: reason
     )
 }
@@ -193,11 +239,52 @@ private func readSecret(service: String, account: String, context: LAContext) th
     return value
 }
 
+private func loadBulkRequest(from path: String) throws -> BulkRequest {
+    let url = URL(fileURLWithPath: path)
+    let data = try Data(contentsOf: url)
+    let decoder = JSONDecoder()
+    let request = try decoder.decode(BulkRequest.self, from: data)
+    if request.items.isEmpty {
+        throw HelperError.invalidArguments("Bulk request must contain at least one item.")
+    }
+    for item in request.items {
+        if item.service.isEmpty || item.account.isEmpty {
+            throw HelperError.invalidArguments(
+                "Each bulk request item must contain non-empty service and account values."
+            )
+        }
+    }
+    return request
+}
+
+private func writeBulkResponse(_ items: [SecretValueItem]) throws {
+    let encoder = JSONEncoder()
+    let data = try encoder.encode(BulkResponse(items: items))
+    FileHandle.standardOutput.write(data)
+}
+
 do {
     let args = try parseArguments(CommandLine.arguments)
     let context = try authenticate(reason: args.reason)
 
     if args.authorizeOnly {
+        exit(0)
+    }
+
+    if let inputJSON = args.inputJSON {
+        let request = try loadBulkRequest(from: inputJSON)
+        let items = try request.items.map { item in
+            SecretValueItem(
+                service: item.service,
+                account: item.account,
+                value: try readSecret(
+                    service: item.service,
+                    account: item.account,
+                    context: context
+                )
+            )
+        }
+        try writeBulkResponse(items)
         exit(0)
     }
 

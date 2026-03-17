@@ -74,6 +74,37 @@ def _require_secret_access_auth(reason: str) -> str | None:
     return reason
 
 
+def _get_secret_value(
+    backend,
+    ref,
+    auth_reason: str | None,
+) -> str:
+    if sys.platform == "darwin":
+        return backend.get_with_auth(ref, auth_reason)
+    return backend.get(ref)
+
+
+def _get_secret_values(
+    refs: list,
+    auth_reason: str | None,
+) -> dict[tuple[str, str], str]:
+    if not refs:
+        return {}
+    backend = backend_for_ref(refs[0])
+    if sys.platform == "darwin":
+        if hasattr(backend, "get_many_with_auth"):
+            return backend.get_many_with_auth(refs, auth_reason)
+    values: dict[tuple[str, str], str] = {}
+    for ref in refs:
+        ref_backend = backend_for_ref(ref)
+        values[(ref.service, ref.account)] = _get_secret_value(
+            ref_backend,
+            ref,
+            auth_reason,
+        )
+    return values
+
+
 def _mask_secret(value: str) -> str:
     if len(value) <= 8:
         return "*" * len(value)
@@ -353,10 +384,7 @@ def secret_get(
             return
 
         auth_reason = _require_secret_access_auth(f"Access secret {var} with envrcctl")
-        if sys.platform == "darwin":
-            value = backend.get_with_auth(parsed, auth_reason)
-        else:
-            value = backend.get(parsed)
+        value = _get_secret_value(backend, parsed, auth_reason)
 
         if plain or show:
             typer.echo(value)
@@ -389,15 +417,20 @@ def inject(
         auth_reason = _require_secret_access_auth("Inject secrets with envrcctl")
         doc = load_envrc(_envrc_path())
         block = ensure_managed_block(doc)
+
+        runtime_refs: list[tuple[str, object]] = []
         for key in sorted(block.secret_refs.keys()):
             ref = parse_ref(block.secret_refs[key])
             if ref.kind != "runtime":
                 continue
-            backend = backend_for_ref(ref)
-            if sys.platform == "darwin":
-                value = backend.get_with_auth(ref, auth_reason)
-            else:
-                value = backend.get(ref)
+            runtime_refs.append((key, ref))
+
+        values = _get_secret_values(
+            [ref for _, ref in runtime_refs],
+            auth_reason,
+        )
+        for key, ref in runtime_refs:
+            value = values[(ref.service, ref.account)]
             typer.echo(f"export {key}={shlex.quote(value)}")
 
     _run(action)
@@ -444,6 +477,8 @@ def exec_cmd(
         env = os.environ.copy()
         for name, value in block.exports.items():
             env[name] = value
+
+        runtime_refs: list[tuple[str, object]] = []
         for name in sorted(block.secret_refs.keys()):
             if selected_keys is not None and name not in selected_keys:
                 continue
@@ -454,11 +489,14 @@ def exec_cmd(
                         f"Secret {name} is admin and cannot be injected via exec."
                     )
                 continue
-            backend = backend_for_ref(ref)
-            if sys.platform == "darwin":
-                env[name] = backend.get_with_auth(ref, auth_reason)
-            else:
-                env[name] = backend.get(ref)
+            runtime_refs.append((name, ref))
+
+        values = _get_secret_values(
+            [ref for _, ref in runtime_refs],
+            auth_reason,
+        )
+        for name, ref in runtime_refs:
+            env[name] = values[(ref.service, ref.account)]
 
         result = subprocess.run(list(ctx.args), env=env)
         if result.returncode != 0:

@@ -5,7 +5,7 @@ import re
 import shutil
 import sys
 from dataclasses import dataclass
-from typing import Iterable, Protocol
+from typing import Iterable, Mapping, Protocol
 
 from .errors import EnvrcctlError
 
@@ -43,6 +43,12 @@ class SecretBackend(Protocol):
     def get(self, ref: SecretRef) -> str: ...
 
     def get_with_auth(self, ref: SecretRef, reason: str | None = None) -> str: ...
+
+    def get_many_with_auth(
+        self,
+        refs: list[SecretRef],
+        reason: str | None = None,
+    ) -> Mapping[tuple[str, str], str]: ...
 
     def set(self, ref: SecretRef, value: str) -> None: ...
 
