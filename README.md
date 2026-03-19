@@ -39,8 +39,8 @@ brew install envrcctl
 ```
 
 For the next patch release, the Homebrew formula is intended to install a
-prebuilt Apple Silicon macOS authentication helper instead of compiling it at
-install time.
+prebuilt Apple Silicon macOS authentication helper from a GitHub release
+`tar.gz` asset instead of compiling it at install time.
 
 This Homebrew path is therefore intended for:
 
@@ -84,8 +84,9 @@ The macOS device owner authentication flow requires a native helper named
 `envrcctl-macos-auth`.
 
 On Apple Silicon macOS, the Homebrew installation path for the next patch
-release is intended to install a prebuilt helper automatically, so you should
-not need to compile it yourself in the common case.
+release is intended to install a prebuilt helper automatically from a GitHub
+release `tar.gz` asset, so you should not need to compile it yourself in the
+common case.
 
 Manual helper installation is still useful when:
 
@@ -94,7 +95,11 @@ Manual helper installation is still useful when:
 - you want to place the helper in a custom location
 - you are not using the Apple Silicon Homebrew distribution path
 
-Build it and place the binary at either:
+The Homebrew release asset is expected to be named
+`envrcctl-macos-auth-arm64.tar.gz` and to contain an executable named
+`envrcctl-macos-auth`.
+
+If you are building the helper yourself, place the binary at either:
 
 - `src/envrcctl/envrcctl-macos-auth`
 - or a custom path set via `ENVRCCTL_MACOS_AUTH_HELPER`

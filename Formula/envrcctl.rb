@@ -12,8 +12,8 @@ class Envrcctl < Formula
   on_macos do
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
-        url "https://github.com/rioriost/homebrew-envrcctl/releases/download/v0.2.1/envrcctl-macos-auth-arm64"
-        sha256 "3e7f601abfb759c19acd144201d5484cdefe4208780dd0d50a2740211f3f5ae1"
+        url "https://github.com/rioriost/homebrew-envrcctl/releases/download/v0.2.1/envrcctl-macos-auth-arm64.tar.gz"
+        sha256 "d20cab4bb68b884379127d3941abfd4a3b79382f6220348746acf3ad6be35464"
       end
     end
   end
@@ -67,8 +67,8 @@ class Envrcctl < Formula
       odie "envrcctl Homebrew installs currently support Apple Silicon macOS only" unless Hardware::CPU.arm?
 
       resource("envrcctl-macos-auth-arm64").stage do
-        helper_source = Dir["*"].first
-        odie "prebuilt macOS auth helper asset is empty" if helper_source.nil?
+        helper_source = Pathname("envrcctl-macos-auth")
+        odie "prebuilt macOS auth helper asset is missing envrcctl-macos-auth" unless helper_source.exist?
 
         cp helper_source, helper_output
       end
