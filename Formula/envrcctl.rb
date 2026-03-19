@@ -3,12 +3,20 @@ class Envrcctl < Formula
 
   desc "Secure, structured management of .envrc files"
   homepage "https://github.com/rioriost/homebrew-envrcctl"
-  url "https://files.pythonhosted.org/packages/97/6a/cd022d2924056817bf6d04518a6ceb4a688bf91fce4be71e1b7f9aaac05a/envrcctl-0.2.0.tar.gz"
-  sha256 "3560d97038001d7daacd82f5817fafa3fbe05c933f51df612248b830db75bab3"
+  url "https://files.pythonhosted.org/packages/97/6a/cd022d2924056817bf6d04518a6ceb4a688bf91fce4be71e1b7f9aaac05a/envrcctl-0.2.1.tar.gz"
+  sha256 "8a775ed606e9c356f77d05b2b80d749b882499fe4abd9ebb125b43582858838c"
   license "MIT"
 
   depends_on "python@3.14"
-  depends_on :xcode => ["15.0", :build]
+
+  on_macos do
+    on_arm do
+      resource "envrcctl-macos-auth-arm64" do
+        url "https://github.com/rioriost/homebrew-envrcctl/releases/download/v0.2.1/envrcctl-macos-auth-arm64"
+        sha256 "3e7f601abfb759c19acd144201d5484cdefe4208780dd0d50a2740211f3f5ae1"
+      end
+    end
+  end
 
   resource "typer" do
     url "https://files.pythonhosted.org/packages/f5/24/cb09efec5cc954f7f9b930bf8279447d24618bb6758d4f6adf2574c41780/typer-0.24.1.tar.gz"
@@ -54,9 +62,19 @@ class Envrcctl < Formula
     virtualenv_install_with_resources
 
     helper_output = libexec/"envrcctl-macos-auth"
-    system "sh", "scripts/build_macos_auth_helper.sh",
-           "scripts/macos/envrcctl-macos-auth.swift",
-           helper_output.to_s
+
+    if OS.mac?
+      odie "envrcctl Homebrew installs currently support Apple Silicon macOS only" unless Hardware::CPU.arm?
+
+      resource("envrcctl-macos-auth-arm64").stage do
+        helper_source = Dir["*"].first
+        odie "prebuilt macOS auth helper asset is empty" if helper_source.nil?
+
+        cp helper_source, helper_output
+      end
+
+      chmod 0755, helper_output
+    end
 
     env_wrapper = libexec/"wrapper-bin"
     env_wrapper.mkpath
@@ -71,6 +89,11 @@ class Envrcctl < Formula
 
   test do
     system "#{bin}/envrcctl", "--help"
-    assert_match "envrcctl-macos-auth", shell_output("#{bin}/envrcctl doctor 2>&1", 1)
+
+    if OS.mac?
+      assert_predicate libexec/"envrcctl-macos-auth", :exist?
+      assert_predicate libexec/"envrcctl-macos-auth", :executable?
+      assert_match "envrcctl-macos-auth", shell_output("#{bin}/envrcctl doctor 2>&1", 1)
+    end
   end
 end

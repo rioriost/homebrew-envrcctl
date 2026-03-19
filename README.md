@@ -29,7 +29,7 @@ It is designed for macOS first, with Linux support via SecretService.
 
 ## Installation
 
-### macOS (Homebrew)
+### macOS (Homebrew, Apple Silicon)
 
 Tap and install:
 
@@ -37,6 +37,17 @@ Tap and install:
 brew tap rioriost/envrcctl
 brew install envrcctl
 ```
+
+For the next patch release, the Homebrew formula is intended to install a
+prebuilt Apple Silicon macOS authentication helper instead of compiling it at
+install time.
+
+This Homebrew path is therefore intended for:
+
+- Apple Silicon (`arm64`) Macs
+- macOS installs that should not require a full Xcode.app build dependency
+
+Intel Macs are not a target for this Homebrew distribution path.
 
 After release, Homebrew will download the release from GitHub.
 
@@ -67,10 +78,21 @@ uv sync
 uv run python -m envrcctl.main --help
 ```
 
-### Build the macOS auth helper (macOS only)
+### Build the macOS auth helper manually (macOS only)
 
 The macOS device owner authentication flow requires a native helper named
 `envrcctl-macos-auth`.
+
+On Apple Silicon macOS, the Homebrew installation path for the next patch
+release is intended to install a prebuilt helper automatically, so you should
+not need to compile it yourself in the common case.
+
+Manual helper installation is still useful when:
+
+- you are running from source
+- you are developing on this repository
+- you want to place the helper in a custom location
+- you are not using the Apple Silicon Homebrew distribution path
 
 Build it and place the binary at either:
 
