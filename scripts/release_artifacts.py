@@ -195,7 +195,7 @@ end
 
 
 def write_formula(repo_root: Path, formula_text: str, formula_dir: Path | None) -> Path:
-    target_dir = formula_dir or (repo_root.parent / "homebrew-tap" / "Formula")
+    target_dir = formula_dir or (repo_root / "Formula")
     target_dir.mkdir(parents=True, exist_ok=True)
     formula_path = target_dir / "envrcctl.rb"
     formula_path.write_text(formula_text, encoding="utf-8")
@@ -226,7 +226,7 @@ def parse_args() -> argparse.Namespace:
         "--formula-dir",
         type=Path,
         default=None,
-        help="Directory to write envrcctl.rb into. Defaults to ../homebrew-tap/Formula.",
+        help="Directory to write envrcctl.rb into. Defaults to ./Formula.",
     )
     return parser.parse_args()
 

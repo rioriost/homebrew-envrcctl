@@ -47,7 +47,7 @@ helper-archive: helper
 	rm -rf "$$tmpdir"
 
 formula:
-	$(PYTHON) scripts/release_artifacts.py --formula-dir ../homebrew-tap/Formula
+	$(PYTHON) scripts/release_artifacts.py --formula-dir ./Formula
 
 clean: clean-dist clean-helper
 
