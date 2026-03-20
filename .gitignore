@@ -12,3 +12,4 @@ htmlcov/
 dist/helper/
 dist/*-arm64.tar.gz
 dist/*-darwin-arm64.tar.gz
+src/*.egg-info/
