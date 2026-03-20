@@ -153,7 +153,7 @@ def formula_content(
     homepage: str,
     license_name: str,
 ) -> str:
-    release_base = f"{homepage}/releases/download/v{version}"
+    release_base = f"{homepage}/releases/download/{version}"
     source_url = f"{release_base}/envrcctl-{version}.tar.gz"
     helper_url = f"{release_base}/envrcctl-macos-auth-{version}-arm64.tar.gz"
 
