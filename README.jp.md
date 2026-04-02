@@ -249,19 +249,27 @@ macOS では、`_is_interactive` 相当の対話判定に加えて、Touch ID / 
 
 ## セキュリティ
 
+### 共通
+
 - シークレットは `.envrc` に書き込まれません
 - シークレットを CLI 引数で渡しません
 - `.envrc` の更新は原子的に行われます
-- Linux では `inject` は非対話環境でブロックされます（`--force` で解除）
-- Linux では `secret get` はクリップボード優先で、平文出力は TTY ガードされます
-- Linux では `exec` も対話式シェルでの利用を前提とします
-- macOS では `secret get` / `inject` / `exec` の実行時に、`_is_interactive` 相当の判定に加えて device owner authentication が必要です
-- macOS の device owner authentication は、環境によって Touch ID、Apple Watch 承認、または macOS が提供する他の所有者認証方法で満たされます
-- macOS では `envrcctl-macos-auth` ヘルパーのビルドと配置が必要です。既定の探索先を使わない場合は `ENVRCCTL_MACOS_AUTH_HELPER` で実行ファイルのパスを指定してください
 - secret access 操作は tamper-evident なローカル audit log に記録されます
 - audit record に plaintext の secret value は含まれません
 - audit integrity は hash chain に基づき、`envrcctl audit verify` で検証できます
 - `.envrc` が world-writable の場合は書き込みを拒否します
+
+### Linux
+
+- `inject` は非対話環境でブロックされます（`--force` で解除）
+- `secret get` はクリップボード優先で、平文出力は TTY ガードされます
+- `exec` も対話式シェルでの利用を前提とします
+
+### macOS
+
+- `secret get` / `inject` / `exec` の実行時に、`_is_interactive` 相当の判定に加えて device owner authentication が必要です
+- device owner authentication は、環境によって Touch ID、Apple Watch 承認、または macOS が提供する他の所有者認証方法で満たされます
+- `envrcctl-macos-auth` ヘルパーのビルドと配置が必要です。既定の探索先を使わない場合は `ENVRCCTL_MACOS_AUTH_HELPER` で実行ファイルのパスを指定してください
 
 ## 謝辞
 

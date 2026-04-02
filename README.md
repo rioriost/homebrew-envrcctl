@@ -317,23 +317,31 @@ uv run python scripts/generate_completions.py
 
 ## Security Notes
 
+### Common
+
 - Secrets are never written to `.envrc`
 - Secrets are never passed in CLI arguments
 - `.envrc` updates are atomic
-- On Linux, `inject` is blocked in non-interactive environments unless `--force` is provided
-- On macOS, `inject` requires both the interactive-shell check and successful device owner authentication
-- On Linux, `secret get` is clipboard-only by default and plaintext output is TTY-guarded
-- On macOS, `secret get` requires both the interactive-shell check and successful device owner authentication
-- On Linux, `exec` keeps the current behavior
-- On macOS, `exec` requires both the interactive-shell check and successful device owner authentication before runtime secrets are injected into the child process
-- On macOS, authentication is mediated by the OS and may use Touch ID, Apple Watch approval, or password fallback depending on system support and configuration
-- On macOS, authenticated commands require the native helper `envrcctl-macos-auth`
-- The helper is discovered from `ENVRCCTL_MACOS_AUTH_HELPER` or `src/envrcctl/envrcctl-macos-auth`
-- If the helper is missing, invalid, or not executable, macOS secret-accessing commands fail closed
 - Secret-access actions are recorded in a local tamper-evident audit log
 - Audit records never include plaintext secret values
 - Audit integrity is based on a hash chain and can be checked with `envrcctl audit verify`
 - The tool refuses to write to world-writable `.envrc`
+
+### On Linux
+
+- `inject` is blocked in non-interactive environments unless `--force` is provided
+- `secret get` is clipboard-only by default and plaintext output is TTY-guarded
+- `exec` keeps the current behavior
+
+### On macOS
+
+- `inject` requires both the interactive-shell check and successful device owner authentication
+- `secret get` requires both the interactive-shell check and successful device owner authentication
+- `exec` requires both the interactive-shell check and successful device owner authentication before runtime secrets are injected into the child process
+- Authentication is mediated by the OS and may use Touch ID, Apple Watch approval, or password fallback depending on system support and configuration
+- Authenticated commands require the native helper `envrcctl-macos-auth`
+- The helper is discovered from `ENVRCCTL_MACOS_AUTH_HELPER` or `src/envrcctl/envrcctl-macos-auth`
+- If the helper is missing, invalid, or not executable, macOS secret-accessing commands fail closed
 
 
 
