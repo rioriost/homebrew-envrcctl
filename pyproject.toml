@@ -9,6 +9,7 @@ authors = [
     { name = "Rio Fujita", email = "rio_github@rio.st" },
 ]
 dependencies = [
+    "click>=8.4.1",
     "typer>=0.24.1",
 ]
 
