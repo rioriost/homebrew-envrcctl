@@ -3,25 +3,25 @@ class Envrcctl < Formula
 
   desc "Manage .envrc with managed blocks and OS-backed secrets"
   homepage "https://github.com/rioriost/envrcctl"
-  url "https://github.com/rioriost/envrcctl/releases/download/0.2.9/envrcctl-0.2.9.tar.gz"
-  sha256 "4935d07d5be7e24872f066aef8bbfe4c65583ed4d627383e767e1f697514e9e8"
+  url "https://github.com/rioriost/envrcctl/releases/download/0.2.10/envrcctl-0.2.10.tar.gz"
+  sha256 "48c83599f641330d7e53eb614e8f9926b03d68839b8a1deef149eb4f95937add"
   license "MIT"
 
   depends_on "python@3.12"
 
+  resource "click" do
+    url "https://files.pythonhosted.org/packages/9b/98/518d8e5081007684232226f475082b30087d0f585e8457db087298259f49/click-8.4.1.tar.gz"
+    sha256 "918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96"
+  end
+
   resource "typer" do
-    url "https://files.pythonhosted.org/packages/e4/51/9aed62104cea109b820bbd6c14245af756112017d309da813ef107d42e7e/typer-0.25.1.tar.gz"
-    sha256 "9616eb8853a09ffeabab1698952f33c6f29ffdbceb4eaeecf571880e8d7664cc"
+    url "https://files.pythonhosted.org/packages/8e/d3/90c1ee19209cb59f6ad185883fd4ccfcf72f8f0bfd549d5a8b70474611d0/typer-0.26.4.tar.gz"
+    sha256 "25b128964de66c5ea36d5ac82adc579e5e113509b17469edf9f5a4a1864ff2a9"
   end
 
   resource "annotated-doc" do
     url "https://files.pythonhosted.org/packages/57/ba/046ceea27344560984e26a590f90bc7f4a75b06701f653222458922b558c/annotated_doc-0.0.4.tar.gz"
     sha256 "fbcda96e87e9c92ad167c2e53839e57503ecfda18804ea28102353485033faa4"
-  end
-
-  resource "click" do
-    url "https://files.pythonhosted.org/packages/bb/63/f9e1ea081ce35720d8b92acde70daaedace594dc93b693c869e0d5910718/click-8.3.3.tar.gz"
-    sha256 "398329ad4837b2ff7cbe1dd166a4c0f8900c3ca3a218de04466f38f6497f18a2"
   end
 
   resource "rich" do
@@ -35,8 +35,8 @@ class Envrcctl < Formula
   end
 
   resource "markdown-it-py" do
-    url "https://files.pythonhosted.org/packages/5b/f5/4ec618ed16cc4f8fb3b701563655a69816155e79e24a17b651541804721d/markdown_it_py-4.0.0.tar.gz"
-    sha256 "cb0a2b4aa34f932c007117b194e945bd74e0ec24133ceb5bac59009cda1cb9f3"
+    url "https://files.pythonhosted.org/packages/06/ff/7841249c247aa650a76b9ee4bbaeae59370dc8bfd2f6c01f3630c35eb134/markdown_it_py-4.2.0.tar.gz"
+    sha256 "04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49"
   end
 
   resource "pygments" do
@@ -52,17 +52,17 @@ class Envrcctl < Formula
   on_macos do
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
-        url "https://github.com/rioriost/envrcctl/releases/download/0.2.9/envrcctl-macos-auth-0.2.9-arm64.tar.gz"
-        sha256 "154a4553ab86b4914681e21fc8642d4a29b0de25f3d5e8a3e7102c6bef3798f9"
+        url "https://github.com/rioriost/envrcctl/releases/download/0.2.10/envrcctl-macos-auth-0.2.10-arm64.tar.gz"
+        sha256 "79a85ad9ad44b189dedc02c69643c9ec7d3a0f5dd57e0242bfbcdc21f16d9275"
       end
     end
   end
 
   def install
     venv = virtualenv_create(libexec, "python3.12")
+    venv.pip_install resource("click")
     venv.pip_install resource("typer")
     venv.pip_install resource("annotated-doc")
-    venv.pip_install resource("click")
     venv.pip_install resource("rich")
     venv.pip_install resource("shellingham")
     venv.pip_install resource("markdown-it-py")
