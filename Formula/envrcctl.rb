@@ -3,8 +3,8 @@ class Envrcctl < Formula
 
   desc "Manage .envrc with managed blocks and OS-backed secrets"
   homepage "https://github.com/rioriost/envrcctl"
-  url "https://github.com/rioriost/envrcctl/releases/download/0.2.10/envrcctl-0.2.10.tar.gz"
-  sha256 "48c83599f641330d7e53eb614e8f9926b03d68839b8a1deef149eb4f95937add"
+  url "https://github.com/rioriost/envrcctl/releases/download/0.2.11/envrcctl-0.2.11.tar.gz"
+  sha256 "17aa89491cc5cd3338b0375651663ab2c7207d44bd856d0a993a9a9cae374d6d"
   license "MIT"
 
   depends_on "python@3.12"
@@ -15,8 +15,8 @@ class Envrcctl < Formula
   end
 
   resource "typer" do
-    url "https://files.pythonhosted.org/packages/8e/d3/90c1ee19209cb59f6ad185883fd4ccfcf72f8f0bfd549d5a8b70474611d0/typer-0.26.4.tar.gz"
-    sha256 "25b128964de66c5ea36d5ac82adc579e5e113509b17469edf9f5a4a1864ff2a9"
+    url "https://files.pythonhosted.org/packages/5e/ed/ef06584ccdd5c410df0837951ecd7e15d9a6144ea1bd4c73cecab1a89891/typer-0.26.7.tar.gz"
+    sha256 "e314a34c617e419c091b2830dda3ea1f257134ff593061a8f5b9717ab8dddb3a"
   end
 
   resource "annotated-doc" do
@@ -52,8 +52,8 @@ class Envrcctl < Formula
   on_macos do
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
-        url "https://github.com/rioriost/envrcctl/releases/download/0.2.10/envrcctl-macos-auth-0.2.10-arm64.tar.gz"
-        sha256 "79a85ad9ad44b189dedc02c69643c9ec7d3a0f5dd57e0242bfbcdc21f16d9275"
+        url "https://github.com/rioriost/envrcctl/releases/download/0.2.11/envrcctl-macos-auth-0.2.11-arm64.tar.gz"
+        sha256 "cd538545a648e22652413c9120663c9866103bc4ba020cb11ec160145d639d71"
       end
     end
   end
