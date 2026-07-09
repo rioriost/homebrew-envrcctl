@@ -3,20 +3,20 @@ class Envrcctl < Formula
 
   desc "Manage .envrc with managed blocks and OS-backed secrets"
   homepage "https://github.com/rioriost/envrcctl"
-  url "https://github.com/rioriost/envrcctl/releases/download/0.2.11/envrcctl-0.2.11.tar.gz"
-  sha256 "17aa89491cc5cd3338b0375651663ab2c7207d44bd856d0a993a9a9cae374d6d"
+  url "https://github.com/rioriost/envrcctl/releases/download/0.2.12/envrcctl-0.2.12.tar.gz"
+  sha256 "b6e005803a64406747f5f3e2c44b0b971a2e687f7c62dd64930ebcca57ac4c55"
   license "MIT"
 
   depends_on "python@3.12"
 
   resource "click" do
-    url "https://files.pythonhosted.org/packages/9b/98/518d8e5081007684232226f475082b30087d0f585e8457db087298259f49/click-8.4.1.tar.gz"
-    sha256 "918b5633eddf6b41c32d4f454bf0de810065c74e3f7dbf8ee5452f8be88d3e96"
+    url "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz"
+    sha256 "9a6cea6e60b17ebe0a44c5cc636d94f09bd66142c1cd7d8b4cd731c4917a15f6"
   end
 
   resource "typer" do
-    url "https://files.pythonhosted.org/packages/5e/ed/ef06584ccdd5c410df0837951ecd7e15d9a6144ea1bd4c73cecab1a89891/typer-0.26.7.tar.gz"
-    sha256 "e314a34c617e419c091b2830dda3ea1f257134ff593061a8f5b9717ab8dddb3a"
+    url "https://files.pythonhosted.org/packages/7c/f7/68adc395201b20b872d68e975386832e8005ffeacedd43a1d837a32815be/typer-0.26.8.tar.gz"
+    sha256 "c244a6bd558886fe3f8780efb6bdd28bb9aff005a94eedebaa5cb32926fe2f7e"
   end
 
   resource "annotated-doc" do
@@ -52,8 +52,8 @@ class Envrcctl < Formula
   on_macos do
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
-        url "https://github.com/rioriost/envrcctl/releases/download/0.2.11/envrcctl-macos-auth-0.2.11-arm64.tar.gz"
-        sha256 "cd538545a648e22652413c9120663c9866103bc4ba020cb11ec160145d639d71"
+        url "https://github.com/rioriost/envrcctl/releases/download/0.2.12/envrcctl-macos-auth-0.2.12-arm64.tar.gz"
+        sha256 "568bee60fd35ddf7e20ffff376fdd15bb666d57b9bcdea752cb5f2e982263992"
       end
     end
   end
