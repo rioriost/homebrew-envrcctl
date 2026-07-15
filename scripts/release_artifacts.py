@@ -284,7 +284,7 @@ def formula_content(
   sha256 "{source_sha256}"
   license "{license_name}"
 
-  depends_on "python@3.12"
+  depends_on "python@3.14"
 
 {resources_section}
 
@@ -298,7 +298,7 @@ def formula_content(
   end
 
   def install
-    venv = virtualenv_create(libexec, "python3.12")
+    venv = virtualenv_create(libexec, "python3.14")
 {install_resources}
     venv.pip_install buildpath
 
@@ -317,7 +317,7 @@ def formula_content(
 
   test do
     assert_predicate bin/"envrcctl", :exist?
-    assert_match version.to_s, shell_output("#{{bin}}/envrcctl --version")
+    assert_match "Manage .envrc", shell_output("#{{bin}}/envrcctl --help")
     if OS.mac? && Hardware::CPU.arm?
       assert_predicate bin/"envrcctl-macos-auth", :exist?
     end

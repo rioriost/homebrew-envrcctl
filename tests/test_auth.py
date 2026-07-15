@@ -34,6 +34,7 @@ def test_helper_path_uses_env_var(monkeypatch, tmp_path: Path) -> None:
 
 def test_helper_path_falls_back_to_default(monkeypatch) -> None:
     monkeypatch.delenv("ENVRCCTL_MACOS_AUTH_HELPER", raising=False)
+    monkeypatch.setattr(auth.shutil, "which", lambda _: None)
 
     path = auth._helper_path()
 

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import click
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from envrcctl import cli
@@ -352,7 +352,7 @@ def test_secret_get_propagates_non_envrcctl_error(tmp_path: Path, monkeypatch) -
 
 
 def test_run_wraps_envrcctl_error_into_exit() -> None:
-    with pytest.raises(click.exceptions.Exit) as exc:
+    with pytest.raises(typer.Exit) as exc:
         cli._run(lambda: (_ for _ in ()).throw(EnvrcctlError("wrapped error")))
 
     assert exc.value.exit_code == 1

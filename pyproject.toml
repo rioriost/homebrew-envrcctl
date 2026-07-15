@@ -1,10 +1,10 @@
 [project]
 name = "envrcctl"
-version = "0.2.12"
+version = "0.3.0"
 description = "Manage .envrc with managed blocks and OS-backed secrets."
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 authors = [
     { name = "Rio Fujita", email = "rio_github@rio.st" },
 ]

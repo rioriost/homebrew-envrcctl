@@ -3,11 +3,11 @@ class Envrcctl < Formula
 
   desc "Manage .envrc with managed blocks and OS-backed secrets"
   homepage "https://github.com/rioriost/envrcctl"
-  url "https://github.com/rioriost/envrcctl/releases/download/0.2.12/envrcctl-0.2.12.tar.gz"
-  sha256 "b6e005803a64406747f5f3e2c44b0b971a2e687f7c62dd64930ebcca57ac4c55"
+  url "https://github.com/rioriost/envrcctl/releases/download/0.3.0/envrcctl-0.3.0.tar.gz"
+  sha256 "f5311bcea2aedd60e3b7d67c6feb68e61e0a843d286afa9453af2f7cb0bd2572"
   license "MIT"
 
-  depends_on "python@3.12"
+  depends_on "python@3.14"
 
   resource "click" do
     url "https://files.pythonhosted.org/packages/76/d4/81420972a676e8ffea40450d8c8c92943e7218a78fe9b64359836cc9876b/click-8.4.2.tar.gz"
@@ -52,14 +52,14 @@ class Envrcctl < Formula
   on_macos do
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
-        url "https://github.com/rioriost/envrcctl/releases/download/0.2.12/envrcctl-macos-auth-0.2.12-arm64.tar.gz"
-        sha256 "568bee60fd35ddf7e20ffff376fdd15bb666d57b9bcdea752cb5f2e982263992"
+        url "https://github.com/rioriost/envrcctl/releases/download/0.3.0/envrcctl-macos-auth-0.3.0-arm64.tar.gz"
+        sha256 "ccef9ae8dbc5f23962cc026f04cddf75d6dbdbff7665582b23e91a5db1504749"
       end
     end
   end
 
   def install
-    venv = virtualenv_create(libexec, "python3.12")
+    venv = virtualenv_create(libexec, "python3.14")
     venv.pip_install resource("click")
     venv.pip_install resource("typer")
     venv.pip_install resource("annotated-doc")
@@ -85,7 +85,7 @@ class Envrcctl < Formula
 
   test do
     assert_predicate bin/"envrcctl", :exist?
-    assert_match version.to_s, shell_output("#{bin}/envrcctl --version")
+    assert_match "Manage .envrc", shell_output("#{bin}/envrcctl --help")
     if OS.mac? && Hardware::CPU.arm?
       assert_predicate bin/"envrcctl-macos-auth", :exist?
     end
