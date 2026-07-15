@@ -53,7 +53,7 @@ class Envrcctl < Formula
     on_arm do
       resource "envrcctl-macos-auth-arm64" do
         url "https://github.com/rioriost/envrcctl/releases/download/0.3.0/envrcctl-macos-auth-0.3.0-arm64.tar.gz"
-        sha256 "ccef9ae8dbc5f23962cc026f04cddf75d6dbdbff7665582b23e91a5db1504749"
+        sha256 "77b077e3bb49a58730879474b3f50e9ea670b93c7f20bbef954ae78debc07ba4"
       end
     end
   end
